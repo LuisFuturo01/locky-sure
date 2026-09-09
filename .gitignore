@@ -1,2 +1,42 @@
-*.env
-*.sql
+
+# Dart/Flutter
+**/*.dart
+**/*.g.dart
+**/*.freezed.dart
+**/*.config.dart
+
+# Compiled outputs
+**/*.apk
+**/*.ipa
+**/*.app
+**/*.dill
+
+# Logs
+**/*.log
+
+# OS generated files
+**/.DS_Store
+**/.DS_Store?
+**/.Spotlight-V100
+**/.Trashes
+**/.Trashes?
+**/._*
+**/Thumbs.db
+
+# Flutter build artifacts
+**/build/
+.dart_tool/
+.flutter-plugins
+.flutter-plugins-dependencies
+
+# IDEs
+.vscode/
+.idea/
+*.iml
+
+# Environment variables
+.env
+
+# Other temporary files
+tmp/
+*.tmp
