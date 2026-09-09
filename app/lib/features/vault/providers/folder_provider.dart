@@ -91,7 +91,7 @@ class FolderProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  Future<void> createFolder({
+  Future<String> createFolder({
     required String name,
     String? parentId,
     String icon = 'folder',
@@ -125,8 +125,8 @@ class FolderProvider extends ChangeNotifier {
       'icon': icon,
       'color': color,
       'iv': encResult['iv'],
-      'created_at': now.toIso8601String(),
-      'updated_at': now.toIso8601String(),
+      'created_at': now.toUtc().toIso8601String(),
+      'updated_at': now.toUtc().toIso8601String(),
     };
 
     await syncEngine.queueMutation(
@@ -137,6 +137,7 @@ class FolderProvider extends ChangeNotifier {
     );
 
     await loadFolders();
+    return id;
   }
 
   Future<void> deleteFolder(String folderId) async {

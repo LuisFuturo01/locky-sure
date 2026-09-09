@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-enum AppThemeMode { emerald, ocean, rose, pearl, obsidian }
+enum AppThemeMode { emerald, ocean, rose, pearl, obsidian, red }
 
 class AppTheme {
   static ThemeData getTheme(AppThemeMode mode) {
@@ -50,6 +50,15 @@ class AppTheme {
           background: const Color(0xFF09090B),
           surface: const Color(0xFF18181B),
           onSurface: const Color(0xFFF4F4F5),
+        );
+      case AppThemeMode.red:
+        return _buildTheme(
+          brightness: Brightness.dark,
+          primary: const Color(0xFFEF4444),
+          secondary: const Color(0xFFF87171),
+          background: const Color(0xFF180A0A),
+          surface: const Color(0xFF2D1212),
+          onSurface: const Color(0xFFFEE2E2),
         );
     }
   }

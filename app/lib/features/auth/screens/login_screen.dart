@@ -226,57 +226,61 @@ class _LoginScreenState extends State<LoginScreen> {
   Widget _buildEmailVerificationView(BuildContext context, AuthProvider authProvider) {
     final theme = Theme.of(context);
     return Scaffold(
-      body: Padding(
-        padding: const EdgeInsets.all(32.0),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.amber.withOpacity(0.15),
-                shape: BoxShape.circle,
-              ),
-              child: const Icon(
-                Iconsax.sms_tracking_copy,
-                size: 56,
-                color: Colors.amber,
-              ),
-            ),
-            const SizedBox(height: 24),
-            Text(
-              '¡Verifica tu Correo!',
-              style: theme.textTheme.headlineSmall?.copyWith(
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-            const SizedBox(height: 12),
-            Text(
-              'Hemos enviado un correo de confirmación a:\n${authProvider.pendingEmail ?? ""}\n\nHaz clic en el enlace del mensaje para activar tu cuenta e ingresar a la bóveda.',
-              textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium,
-            ),
-            const SizedBox(height: 32),
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 28.0, vertical: 20.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(24),
+                  decoration: BoxDecoration(
+                    color: Colors.amber.withOpacity(0.15),
+                    shape: BoxShape.circle,
+                  ),
+                  child: const Icon(
+                    Iconsax.sms_tracking_copy,
+                    size: 56,
+                    color: Colors.amber,
+                  ),
+                ),
+                const SizedBox(height: 24),
+                Text(
+                  '¡Verifica tu Correo!',
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 12),
+                Text(
+                  'Hemos enviado un correo de confirmación a:\n${authProvider.pendingEmail ?? ""}\n\nHaz clic en el enlace del mensaje para activar tu cuenta e ingresar a la bóveda.',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium,
+                ),
+                const SizedBox(height: 32),
 
-            ElevatedButton.icon(
-              onPressed: () async {
-                await authProvider.resendVerificationEmail();
-                if (context.mounted) {
-                  SnackbarUtils.showSuccess(context, 'Correo de verificación reenviado');
-                }
-              },
-              icon: const Icon(Iconsax.refresh_copy),
-              label: const Text('Reenviar Correo de Confirmación'),
-            ),
-            const SizedBox(height: 12),
+                ElevatedButton.icon(
+                  onPressed: () async {
+                    await authProvider.resendVerificationEmail();
+                    if (context.mounted) {
+                      SnackbarUtils.showSuccess(context, 'Correo de verificación reenviado');
+                    }
+                  },
+                  icon: const Icon(Iconsax.refresh_copy),
+                  label: const Text('Reenviar Correo de Confirmación'),
+                ),
+                const SizedBox(height: 12),
 
-            TextButton(
-              onPressed: () {
-                authProvider.cancelEmailConfirmation();
-              },
-              child: const Text('Volver al Inicio de Sesión'),
+                TextButton(
+                  onPressed: () {
+                    authProvider.cancelEmailConfirmation();
+                  },
+                  child: const Text('Volver al Inicio de Sesión'),
+                ),
+              ],
             ),
-          ],
+          ),
         ),
       ),
     );
@@ -288,21 +292,23 @@ class _LoginScreenState extends State<LoginScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         title: const Text('Recuperar Contraseña'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text('Ingresa tu correo registrado y te enviaremos un enlace de recuperación:'),
-            const SizedBox(height: 12),
-            TextField(
-              controller: resetEmailController,
-              keyboardType: TextInputType.emailAddress,
-              decoration: const InputDecoration(
-                labelText: 'Correo electrónico',
-                prefixIcon: Icon(Iconsax.sms_copy),
+        content: SingleChildScrollView(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Ingresa tu correo registrado y te enviaremos un enlace de recuperación:'),
+              const SizedBox(height: 12),
+              TextField(
+                controller: resetEmailController,
+                keyboardType: TextInputType.emailAddress,
+                decoration: const InputDecoration(
+                  labelText: 'Correo electrónico',
+                  prefixIcon: Icon(Iconsax.sms_copy),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
         actions: [
           TextButton(

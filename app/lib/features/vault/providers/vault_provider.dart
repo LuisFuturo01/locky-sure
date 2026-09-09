@@ -174,8 +174,8 @@ class VaultProvider extends ChangeNotifier {
       'data_encrypted': encData['cipherText'],
       'iv': encTitle['iv'],
       'is_favorite': isFavorite,
-      'created_at': now.toIso8601String(),
-      'updated_at': now.toIso8601String(),
+      'created_at': now.toUtc().toIso8601String(),
+      'updated_at': now.toUtc().toIso8601String(),
     };
 
     await syncEngine.queueMutation(
@@ -241,7 +241,7 @@ class VaultProvider extends ChangeNotifier {
       'title_encrypted': encTitle['cipherText'],
       'data_encrypted': encData['cipherText'],
       'iv': encTitle['iv'],
-      'updated_at': now.toIso8601String(),
+      'updated_at': now.toUtc().toIso8601String(),
     };
     if (isFavorite != null) payload['is_favorite'] = isFavorite;
     if (SupabaseService.currentUser != null) {
@@ -274,7 +274,7 @@ class VaultProvider extends ChangeNotifier {
 
     bool undone = false;
     final snackBar = SnackBar(
-      duration: const Duration(seconds: 5),
+      duration: const Duration(seconds: 3),
       behavior: SnackBarBehavior.floating,
       content: Text('"${item.title}" eliminada'),
       action: SnackBarAction(
@@ -305,7 +305,7 @@ class VaultProvider extends ChangeNotifier {
 
     bool undone = false;
     final snackBar = SnackBar(
-      duration: const Duration(seconds: 5),
+      duration: const Duration(seconds: 3),
       behavior: SnackBarBehavior.floating,
       content: Text('${itemsToDelete.length} elementos eliminados'),
       action: SnackBarAction(

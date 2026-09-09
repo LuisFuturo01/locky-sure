@@ -80,6 +80,7 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
         if (_notesController.text.isNotEmpty) _showAdvanced = true;
       }
       if (data.containsKey('card_number')) _cardNumberController.text = data['card_number']?.toString() ?? '';
+      if (data.containsKey('document_number')) _cardNumberController.text = data['document_number']?.toString() ?? '';
       if (data.containsKey('cardholder_name')) _cardHolderController.text = data['cardholder_name']?.toString() ?? '';
       if (data.containsKey('expiry_date')) _expiryController.text = data['expiry_date']?.toString() ?? '';
       if (data.containsKey('cvv')) _cvvController.text = data['cvv']?.toString() ?? '';
@@ -193,17 +194,30 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
 
             if (_showAdvanced) ...[
               const SizedBox(height: 16),
-              DropdownButtonFormField<String?>(
-                value: folderProvider.folders.any((f) => f.id == _selectedFolderId) ? _selectedFolderId : null,
-                decoration: const InputDecoration(
-                  labelText: 'Guardar en Carpeta',
-                  prefixIcon: Icon(Iconsax.folder_copy),
-                ),
-                items: [
-                  const DropdownMenuItem(value: null, child: Text('Sin carpeta (Raíz)')),
-                  ...folderProvider.folders.map((f) => DropdownMenuItem(value: f.id, child: Text(f.name))),
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.center,
+                children: [
+                  Expanded(
+                    child: DropdownButtonFormField<String?>(
+                      value: folderProvider.folders.any((f) => f.id == _selectedFolderId) ? _selectedFolderId : null,
+                      decoration: const InputDecoration(
+                        labelText: 'Guardar en Carpeta',
+                        prefixIcon: Icon(Iconsax.folder_copy),
+                      ),
+                      items: [
+                        const DropdownMenuItem(value: null, child: Text('Sin carpeta (Raíz)')),
+                        ...folderProvider.folders.map((f) => DropdownMenuItem(value: f.id, child: Text(f.name))),
+                      ],
+                      onChanged: (val) => setState(() => _selectedFolderId = val),
+                    ),
+                  ),
+                  const SizedBox(width: 8),
+                  IconButton.filledTonal(
+                    tooltip: 'Crear nueva carpeta',
+                    icon: const Icon(Iconsax.folder_add_copy),
+                    onPressed: () => _showCreateFolderModal(context, folderProvider),
+                  ),
                 ],
-                onChanged: (val) => setState(() => _selectedFolderId = val),
               ),
               const SizedBox(height: 14),
 
@@ -307,6 +321,9 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
                             }
                           } else if (_selectedType == 'note') {
                             data['content'] = _noteContentController.text.trim();
+                          } else if (_selectedType == 'identity') {
+                            data['username'] = _usernameController.text.trim();
+                            data['document_number'] = _cardNumberController.text.trim();
                           } else {
                             data['username'] = _usernameController.text.trim();
                             data['password'] = _passwordController.text.trim();
@@ -489,14 +506,43 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
           ),
         ),
       ];
+    } else if (_selectedType == 'identity') {
+      return [
+        TextField(
+          controller: _titleController,
+          decoration: const InputDecoration(
+            labelText: 'Título del Documento *',
+            hintText: 'ej. Carnet de Identidad (CI), Licencia, Matrícula',
+            prefixIcon: Icon(Iconsax.personalcard_copy),
+          ),
+        ),
+        const SizedBox(height: 16),
+        TextField(
+          controller: _usernameController,
+          decoration: const InputDecoration(
+            labelText: 'Nombre Completo del Titular',
+            hintText: 'ej. Juan Carlos Pérez Gómez',
+            prefixIcon: Icon(Iconsax.user_copy),
+          ),
+        ),
+        const SizedBox(height: 16),
+        TextField(
+          controller: _cardNumberController,
+          decoration: const InputDecoration(
+            labelText: 'Número de Documento / CI / DNI / Matrícula',
+            hintText: 'ej. 8394012 LP, 4920491-A, 20230192',
+            prefixIcon: Icon(Iconsax.driver_copy),
+          ),
+        ),
+      ];
     } else {
-      // Default: Account / Password / API Key / Identity
+      // Default: Account / Password / API Key
       return [
         TextField(
           controller: _titleController,
           decoration: const InputDecoration(
             labelText: 'Título o Servicio *',
-            hintText: 'ej. Netflix, Google, Wi-Fi Casa',
+            hintText: 'ej. Netflix, Gmail, Wi-Fi Casa',
             prefixIcon: Icon(Iconsax.edit_2_copy),
           ),
         ),
@@ -505,6 +551,7 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
           controller: _usernameController,
           decoration: const InputDecoration(
             labelText: 'Usuario / Correo / ID',
+            hintText: 'ej. usuario@correo.com o mi_usuario',
             prefixIcon: Icon(Iconsax.user_copy),
           ),
         ),
@@ -514,6 +561,7 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
           obscureText: _obscurePassword,
           decoration: InputDecoration(
             labelText: 'Contraseña *',
+            hintText: '••••••••',
             prefixIcon: const Icon(Iconsax.key_copy),
             suffixIcon: Row(
               mainAxisSize: MainAxisSize.min,
@@ -533,6 +581,52 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
         ),
       ];
     }
+  }
+
+  void _showCreateFolderModal(BuildContext context, FolderProvider folderProvider) {
+    final nameCtrl = TextEditingController();
+    showDialog(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Row(
+          children: [
+            Icon(Iconsax.folder_add_copy, color: Color(0xFF6366F1)),
+            SizedBox(width: 8),
+            Text('Nueva Carpeta'),
+          ],
+        ),
+        content: TextField(
+          controller: nameCtrl,
+          autofocus: true,
+          decoration: const InputDecoration(
+            labelText: 'Nombre de la carpeta',
+            hintText: 'ej. Trabajo, Bancos, Personal',
+          ),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Cancelar'),
+          ),
+          ElevatedButton(
+            onPressed: () async {
+              final name = nameCtrl.text.trim();
+              if (name.isNotEmpty) {
+                final newId = await folderProvider.createFolder(name: name);
+                if (mounted) {
+                  setState(() {
+                    _selectedFolderId = newId;
+                  });
+                  Navigator.pop(ctx);
+                  SnackbarUtils.showSuccess(context, 'Carpeta "$name" creada');
+                }
+              }
+            },
+            child: const Text('Crear y Seleccionar'),
+          ),
+        ],
+      ),
+    );
   }
 }
 

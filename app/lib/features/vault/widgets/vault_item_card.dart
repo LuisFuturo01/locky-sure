@@ -10,6 +10,7 @@ import 'item_type_icon.dart';
 class VaultItemCard extends StatelessWidget {
   final VaultItemModel item;
   final VoidCallback onTap;
+  final VoidCallback? onLongPress;
   final bool isSelectionMode;
   final bool isSelected;
   final ValueChanged<bool?>? onSelectChanged;
@@ -18,6 +19,7 @@ class VaultItemCard extends StatelessWidget {
     super.key,
     required this.item,
     required this.onTap,
+    this.onLongPress,
     this.isSelectionMode = false,
     this.isSelected = false,
     this.onSelectChanged,
@@ -42,6 +44,7 @@ class VaultItemCard extends StatelessWidget {
         onTap: isSelectionMode
             ? () => onSelectChanged?.call(!isSelected)
             : onTap,
+        onLongPress: onLongPress,
         child: Row(
           children: [
             if (tagColor != null && !isSelectionMode) ...[

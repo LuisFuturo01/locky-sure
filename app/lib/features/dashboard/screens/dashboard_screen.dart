@@ -20,16 +20,41 @@ import '../../../shared/utils/snackbar_utils.dart';
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
 
+  Future<void> _doSync(BuildContext context) async {
+    final connectivity = Provider.of<ConnectivityService>(context, listen: false);
+    final syncEngine = Provider.of<SyncEngine>(context, listen: false);
+    final vault = Provider.of<VaultProvider>(context, listen: false);
+    final folder = Provider.of<FolderProvider>(context, listen: false);
+
+    if (!connectivity.isConnected) {
+      if (context.mounted) {
+        SnackbarUtils.showError(context, 'Sin conexión a Internet. Conéctate para sincronizar.');
+      }
+      return;
+    }
+
+    final success = await syncEngine.syncAll(onComplete: () async {
+      await vault.loadItems();
+      await folder.loadFolders();
+    });
+
+    if (context.mounted) {
+      if (success) {
+        SnackbarUtils.showSuccess(context, 'Sincronización completada');
+      } else {
+        final err = syncEngine.lastError ?? 'No se pudo sincronizar tus datos con tu cuenta. Revisa tu conexión a internet o intenta más tarde.';
+        SnackbarUtils.showError(context, err);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final dashboard = Provider.of<DashboardProvider>(context);
     final connectivity = Provider.of<ConnectivityService>(context);
-    final syncEngine = Provider.of<SyncEngine>(context);
-    final vault = Provider.of<VaultProvider>(context, listen: false);
-    final folder = Provider.of<FolderProvider>(context, listen: false);
 
     return Scaffold(
-      appBar: const CustomAppBar(title: 'Locky Bóveda'),
+      appBar: const CustomAppBar(title: 'Locky'),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () {
           Navigator.push(
@@ -40,112 +65,108 @@ class DashboardScreen extends StatelessWidget {
         icon: const Icon(Iconsax.add_copy),
         label: const Text('Nueva Credencial'),
       ),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            SyncStatusBarWidget(
-              isConnected: connectivity.isConnected,
-              pendingCount: dashboard.pendingSyncItems,
-              onSyncTap: () async {
-                await syncEngine.syncAll(onComplete: () {
-                  vault.loadItems();
-                  folder.loadFolders();
-                });
-                if (context.mounted) {
-                  SnackbarUtils.showSuccess(context, 'Sincronización completada');
-                }
-              },
-            ),
-            const SizedBox(height: 20),
+      body: RefreshIndicator(
+        onRefresh: () => _doSync(context),
+        child: SingleChildScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          padding: const EdgeInsets.all(20.0),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SyncStatusBarWidget(
+                isConnected: connectivity.isConnected,
+                pendingCount: dashboard.pendingSyncItems,
+                onSyncTap: () => _doSync(context),
+              ),
+              const SizedBox(height: 20),
 
-            Row(
-              children: [
-                Expanded(
-                  child: StatsCardWidget(
-                    title: 'Total Items',
-                    value: '${dashboard.totalItems}',
-                    icon: Iconsax.key_copy,
-                    color: Theme.of(context).colorScheme.primary,
+              Row(
+                children: [
+                  Expanded(
+                    child: StatsCardWidget(
+                      title: 'Total Items',
+                      value: '${dashboard.totalItems}',
+                      icon: Iconsax.key_copy,
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: StatsCardWidget(
-                    title: 'Carpetas',
-                    value: '${dashboard.totalFolders}',
-                    icon: Iconsax.folder_copy,
-                    color: const Color(0xFF6366F1),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: StatsCardWidget(
+                      title: 'Carpetas',
+                      value: '${dashboard.totalFolders}',
+                      icon: Iconsax.folder_copy,
+                      color: const Color(0xFF6366F1),
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
+                ],
+              ),
+              const SizedBox(height: 12),
 
-            Row(
-              children: [
-                Expanded(
-                  child: StatsCardWidget(
-                    title: 'Contraseñas',
-                    value: '${dashboard.passwordCount}',
-                    icon: Iconsax.lock_copy,
-                    color: const Color(0xFF10B981),
+              Row(
+                children: [
+                  Expanded(
+                    child: StatsCardWidget(
+                      title: 'Contraseñas',
+                      value: '${dashboard.passwordCount}',
+                      icon: Iconsax.lock_copy,
+                      color: const Color(0xFF10B981),
+                    ),
                   ),
-                ),
-                const SizedBox(width: 12),
-                Expanded(
-                  child: StatsCardWidget(
-                    title: 'Pendientes Sync',
-                    value: '${dashboard.pendingSyncItems}',
-                    icon: Iconsax.cloud_cross_copy,
-                    color: dashboard.pendingSyncItems > 0 ? Colors.amber : Colors.grey,
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: StatsCardWidget(
+                      title: 'Pendientes Sync',
+                      value: '${dashboard.pendingSyncItems}',
+                      icon: Iconsax.cloud_cross_copy,
+                      color: dashboard.pendingSyncItems > 0 ? Colors.amber : Colors.grey,
+                    ),
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 24),
+                ],
+              ),
+              const SizedBox(height: 24),
 
-            QuickActionsWidget(
-              onAddPassword: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const ItemFormScreen(initialType: 'password'),
-                  ),
-                );
-              },
-              onAddNote: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const ItemFormScreen(initialType: 'note'),
-                  ),
-                );
-              },
-              onAddCard: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => const ItemFormScreen(initialType: 'card'),
-                  ),
-                );
-              },
-            ),
-            const SizedBox(height: 28),
+              QuickActionsWidget(
+                onAddPassword: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const ItemFormScreen(initialType: 'password'),
+                    ),
+                  );
+                },
+                onAddNote: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const ItemFormScreen(initialType: 'note'),
+                    ),
+                  );
+                },
+                onAddCard: () {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => const ItemFormScreen(initialType: 'card'),
+                    ),
+                  );
+                },
+              ),
+              const SizedBox(height: 28),
 
-            RecentItemsWidget(
-              items: dashboard.recentItems,
-              onItemTap: (item) {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => ItemDetailScreen(item: item),
-                  ),
-                );
-              },
-            ),
-          ],
+              RecentItemsWidget(
+                items: dashboard.recentItems,
+                onItemTap: (item) {
+                  Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (_) => ItemDetailScreen(item: item),
+                    ),
+                  );
+                },
+              ),
+            ],
+          ),
         ),
       ),
     );

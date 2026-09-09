@@ -16,13 +16,14 @@ class ThemeSelectorWidget extends StatelessWidget {
       {'mode': AppThemeMode.rose, 'name': '🩷 Rose', 'color': const Color(0xFFF472B6)},
       {'mode': AppThemeMode.pearl, 'name': '⚪ Pearl (Light)', 'color': const Color(0xFF6366F1)},
       {'mode': AppThemeMode.obsidian, 'name': '⚫ Obsidian (Dark)', 'color': const Color(0xFFA78BFA)},
+      {'mode': AppThemeMode.red, 'name': '🔴 Ruby (Red Dark)', 'color': const Color(0xFFEF4444)},
     ];
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const Text(
-          'Tema Visual (5 Estilos)',
+          'Tema Visual (6 Estilos)',
           style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
         ),
         const SizedBox(height: 12),

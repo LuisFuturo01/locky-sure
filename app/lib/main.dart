@@ -53,7 +53,7 @@ void main() async {
         Provider<AppDatabase>.value(value: db),
         Provider<CryptoService>.value(value: cryptoService),
         ChangeNotifierProvider<ConnectivityService>.value(value: connectivityService),
-        Provider<SyncEngine>.value(value: syncEngine),
+        ChangeNotifierProvider<SyncEngine>.value(value: syncEngine),
 
         ChangeNotifierProvider(create: (_) => ThemeProvider()),
         ChangeNotifierProvider(

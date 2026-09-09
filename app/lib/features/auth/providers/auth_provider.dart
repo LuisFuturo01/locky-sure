@@ -94,6 +94,7 @@ class AuthProvider extends ChangeNotifier {
       final response = await SupabaseService.client.auth.signUp(
         email: email,
         password: password,
+        emailRedirectTo: 'https://singular-melomakarona-bc5ce2.netlify.app',
       );
 
       if (response.user != null) {
@@ -191,7 +192,10 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await SupabaseService.client.auth.resetPasswordForEmail(email);
+      await SupabaseService.client.auth.resetPasswordForEmail(
+        email,
+        redirectTo: 'https://magical-starship-e2f526.netlify.app',
+      );
       _isLoading = false;
       notifyListeners();
       return true;

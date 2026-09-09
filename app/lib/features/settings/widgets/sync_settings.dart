@@ -42,12 +42,21 @@ class SyncSettingsWidget extends StatelessWidget {
             onPressed: !connectivity.isConnected || syncEngine.isSyncing
                 ? null
                 : () async {
-                    await syncEngine.syncAll(onComplete: () {
-                      vault.loadItems();
-                      folder.loadFolders();
+                    if (!connectivity.isConnected) {
+                      SnackbarUtils.showError(context, 'Sin conexión a Internet. Conéctate para sincronizar.');
+                      return;
+                    }
+                    final success = await syncEngine.syncAll(onComplete: () async {
+                      await vault.loadItems();
+                      await folder.loadFolders();
                     });
                     if (context.mounted) {
-                      SnackbarUtils.showSuccess(context, 'Sincronización completada');
+                      if (success) {
+                        SnackbarUtils.showSuccess(context, 'Sincronización completada');
+                      } else {
+                        final err = syncEngine.lastError ?? 'No se pudo sincronizar tus datos con tu cuenta. Revisa tu conexión a internet o intenta más tarde.';
+                        SnackbarUtils.showError(context, err);
+                      }
                     }
                   },
             icon: syncEngine.isSyncing

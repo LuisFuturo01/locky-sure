@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 
@@ -19,7 +20,7 @@ class LockyApp extends StatelessWidget {
     final authProvider = Provider.of<AuthProvider>(context);
 
     return MaterialApp(
-      title: 'Locky Bóveda',
+      title: 'Locky',
       debugShowCheckedModeBanner: false,
       theme: themeProvider.currentTheme,
       home: _buildHome(authProvider.state),
@@ -71,19 +72,45 @@ class _MainNavigationShellState extends State<MainNavigationShell> with WidgetsB
 
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
-    if (state == AppLifecycleState.paused || state == AppLifecycleState.inactive) {
-      // Auto lock app immediately when user minimizes or switches apps
+    // Lock app ONLY when minimized or moved to background (paused), NOT when pulling status/notification bar (inactive)
+    if (state == AppLifecycleState.paused) {
       Provider.of<AuthProvider>(context, listen: false).lockApp();
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: IndexedStack(
-        index: _currentIndex,
-        children: _screens,
-      ),
+    return PopScope(
+      canPop: false,
+      onPopInvokedWithResult: (didPop, result) async {
+        if (didPop) return;
+        final shouldExit = await showDialog<bool>(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: const Text('¿Salir de Locky?'),
+            content: const Text('¿Estás seguro de que deseas salir de la aplicación?'),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.of(ctx).pop(false),
+                child: const Text('Cancelar'),
+              ),
+              ElevatedButton(
+                style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                onPressed: () => Navigator.of(ctx).pop(true),
+                child: const Text('Salir', style: TextStyle(color: Colors.white)),
+              ),
+            ],
+          ),
+        );
+        if (shouldExit == true) {
+          SystemNavigator.pop();
+        }
+      },
+      child: Scaffold(
+        body: IndexedStack(
+          index: _currentIndex,
+          children: _screens,
+        ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _currentIndex,
         onDestinationSelected: (index) {
@@ -109,6 +136,7 @@ class _MainNavigationShellState extends State<MainNavigationShell> with WidgetsB
           ),
         ],
       ),
-    );
-  }
+    ),
+  );
+}
 }

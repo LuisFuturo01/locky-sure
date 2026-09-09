@@ -8,6 +8,7 @@ class FolderTreeWidget extends StatelessWidget {
   final ValueChanged<String?> onSelectFolder;
   final VoidCallback onCreateFolder;
   final ValueChanged<FolderModel>? onDeleteFolder;
+  final ValueChanged<FolderModel>? onShareFolder;
 
   const FolderTreeWidget({
     super.key,
@@ -16,11 +17,16 @@ class FolderTreeWidget extends StatelessWidget {
     required this.onSelectFolder,
     required this.onCreateFolder,
     this.onDeleteFolder,
+    this.onShareFolder,
   });
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final selectedFolder = folders.cast<FolderModel?>().firstWhere(
+          (f) => f?.id == selectedFolderId,
+          orElse: () => null,
+        );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -34,9 +40,21 @@ class FolderTreeWidget extends StatelessWidget {
                 fontWeight: FontWeight.bold,
               ),
             ),
-            IconButton(
-              icon: const Icon(Iconsax.folder_add_copy, size: 20),
-              onPressed: onCreateFolder,
+            Row(
+              children: [
+                if (selectedFolder != null && onShareFolder != null) ...[
+                  IconButton(
+                    tooltip: 'Compartir carpeta "${selectedFolder.name}"',
+                    icon: const Icon(Iconsax.export_1_copy, size: 20, color: Color(0xFF6366F1)),
+                    onPressed: () => onShareFolder!(selectedFolder),
+                  ),
+                ],
+                IconButton(
+                  tooltip: 'Nueva carpeta',
+                  icon: const Icon(Iconsax.folder_add_copy, size: 20),
+                  onPressed: onCreateFolder,
+                ),
+              ],
             ),
           ],
         ),

@@ -4,12 +4,14 @@ class GlassmorphicCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry? padding;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
 
   const GlassmorphicCard({
     super.key,
     required this.child,
     this.padding,
     this.onTap,
+    this.onLongPress,
   });
 
   @override
@@ -42,6 +44,7 @@ class GlassmorphicCard extends StatelessWidget {
         child: InkWell(
           borderRadius: BorderRadius.circular(20),
           onTap: onTap,
+          onLongPress: onLongPress,
           child: Padding(
             padding: padding ?? const EdgeInsets.all(16),
             child: child,
