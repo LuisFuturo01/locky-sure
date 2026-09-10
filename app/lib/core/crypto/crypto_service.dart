@@ -2,7 +2,7 @@
 /// Swap implementations by changing which class is provided.
 abstract class CryptoService {
   /// Encrypts [plainText] and returns a map with 'cipherText' and 'iv'.
-  Future<Map<String, String>> encryptText(String plainText);
+  Future<Map<String, String>> encryptText(String plainText, [String? customIvBase64]);
 
   /// Decrypts [cipherText] using the provided [iv].
   Future<String> decryptText(String cipherText, String iv);

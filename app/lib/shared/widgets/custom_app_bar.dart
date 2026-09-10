@@ -30,9 +30,9 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       builder: (ctx) => DraggableScrollableSheet(
-        initialChildSize: 0.75,
+        initialChildSize: 0.85,
         minChildSize: 0.5,
-        maxChildSize: 0.9,
+        maxChildSize: 0.95,
         expand: false,
         builder: (_, scrollController) => Padding(
           padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 16.0),
@@ -53,12 +53,12 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
               Row(
                 children: [
                   Container(
-                    padding: const EdgeInsets.all(10),
+                    padding: const EdgeInsets.all(12),
                     decoration: BoxDecoration(
                       color: theme.colorScheme.primary.withOpacity(0.15),
-                      borderRadius: BorderRadius.circular(14),
+                      borderRadius: BorderRadius.circular(16),
                     ),
-                    child: Icon(Iconsax.info_circle_copy, color: theme.colorScheme.primary, size: 24),
+                    child: Icon(Iconsax.info_circle_copy, color: theme.colorScheme.primary, size: 28),
                   ),
                   const SizedBox(width: 14),
                   Expanded(
@@ -66,11 +66,11 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Guía de Uso de Locky',
-                          style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 18),
+                          'Guía Completa de Locky',
+                          style: GoogleFonts.inter(fontWeight: FontWeight.bold, fontSize: 20),
                         ),
                         Text(
-                          'Tu gestor seguro y personal',
+                          'Todo lo que necesitas saber para usar tu app',
                           style: TextStyle(fontSize: 13, color: theme.colorScheme.onSurface.withOpacity(0.6)),
                         ),
                       ],
@@ -84,49 +84,92 @@ class CustomAppBar extends StatelessWidget implements PreferredSizeWidget {
 
               _buildHelpSection(
                 context,
-                icon: Iconsax.key_copy,
+                icon: Iconsax.shield_tick_copy,
+                color: const Color(0xFF6366F1),
+                title: '1. ¿Qué es Locky y cuál es su objetivo?',
+                content:
+                    'Locky es tu bóveda personal de alta seguridad. Cifra y almacena tus contraseñas, documentos de identidad, tarjetas de crédito/débito y notas secretas directamente en tu teléfono con encriptación AES-256.',
+              ),
+              const SizedBox(height: 20),
+
+              _buildHelpSection(
+                context,
+                icon: Iconsax.category_copy,
                 color: const Color(0xFF10B981),
-                title: '¿Qué puedes almacenar?',
+                title: '2. Categorías de Información (¿Qué guardar?)',
                 content:
-                    '• Contraseñas y Cuentas: Claves de correos, streaming o redes sociales.\n'
-                    '• Tarjetas de Crédito/Débito: Números, fechas de vencimiento, CVV y PIN de cajero.\n'
-                    '• Documentos e Identidad: Carnets (CI/DNI), matrículas o licencias sin exigir contraseña.\n'
-                    '• Notas Confidenciales: PINs secretos, frases semilla o códigos de recuperación.',
+                    '• 🔑 Cuentas / Login: Registra correo, usuario, contraseña y enlace web (ej. Netflix, Gmail, Banco).\n'
+                    '• 💳 Tarjetas Bancarias: Guarda el titular, número de tarjeta, vencimiento, CVV, PIN de cajero y N° de cuenta asociada.\n'
+                    '• 🪪 Identidad y Documentos: Almacena Carnets (CI/DNI), Licencias de Conducir o Matrículas universitarias con Nombre y Número de Documento (sin exigir contraseña).\n'
+                    '• 📝 Notas Seguras: Almacena frases de recuperación, PINs secretos o información confidencial.\n'
+                    '• 💻 API Keys: Guarda claves y tokens de desarrollador.',
               ),
               const SizedBox(height: 20),
 
               _buildHelpSection(
                 context,
-                icon: Iconsax.task_square_copy,
-                color: const Color(0xFF3B82F6),
-                title: 'Acciones Rápida y Checklist',
+                icon: Iconsax.element_4_copy,
+                color: const Color(0xFFEC4899),
+                title: '3. Guía Detallada de Botones e Iconos',
                 content:
-                    '• Selección Múltiple: Mantén presionada cualquier tarjeta para seleccionar varios elementos y borrarlos a la vez.\n'
-                    '• Creación de Carpetas: Agrupa tus registros y crea nuevas carpetas directamente desde el formulario.\n'
-                    '• Compartir Carpetas: Envía resúmenes de credenciales mediante el botón Compartir con un práctico checklist.',
+                    '• 🔍 Buscador: Filtra tus registros en tiempo real por nombre o correo.\n'
+                    '• 📋 Checklist / Selección Masiva (Icono arriba derecha): Activa el modo selección. También puedes mantener presionada cualquier tarjeta para marcar varios elementos y borrarlos a la vez.\n'
+                    '• ℹ️ Asistencia (Icono ayuda): Abre este manual explicativo.\n'
+                    '• ➕ Nuevo Item (Botón flotante inferior): Abre el formulario para guardar cualquier clave.\n'
+                    '• 📁 Botón "+" de Carpetas: Crea nuevas carpetas directamente desde la bóveda o en el propio formulario al registrar un elemento.\n'
+                    '• 📤 Compartir Carpeta (Icono al lado de carpetas): Abre el panel para elegir exactamente qué credenciales y qué campos específicos enviar.',
               ),
               const SizedBox(height: 20),
 
               _buildHelpSection(
                 context,
-                icon: Iconsax.cloud_change_copy,
-                color: const Color(0xFF8B5CF6),
-                title: 'Sincronización y Seguridad',
+                icon: Iconsax.setting_2_copy,
+                color: const Color(0xFFF59E0B),
+                title: '4. ¿Qué hay en la Pantalla de Ajustes?',
                 content:
-                    '• Cifrado en Celular: Tus datos se protegen directamente en tu teléfono antes de guardarse.\n'
-                    '• Respaldo en la Nube: Si cuentas con conexión a internet, tus cambios se respaldan automáticamente.\n'
-                    '• Modo Offline: Puedes usar la app sin internet; al reconectarte, todo se sincronizará.',
+                    '• 🎨 Selector de Temas Visuales: Elige entre varios colores de interfaz (Índigo, Rojo Red, Oscuro, Claro).\n'
+                    '• 📶 Estado de Red: Te muestra si estás conectado a internet o guardando localmente en el celular.\n'
+                    '• 🔄 Sincronizar Ahora: Botón para forzar el respaldo inmediato de tus datos pendientes con tu cuenta.\n'
+                    '• 🚪 Cerrar Sesión: Sale de tu cuenta Locky de forma segura.',
+              ),
+              const SizedBox(height: 20),
+
+              _buildHelpSection(
+                context,
+                icon: Iconsax.wifi_square_copy,
+                color: const Color(0xFF06B6D4),
+                title: '5. ¿Qué pasa con Internet y la Sincronización?',
+                content:
+                    '• Funcionamiento 100% Offline: Locky funciona perfectamente en modo avión o sin red. Todo se guarda cifrado en tu teléfono.\n'
+                    '• Auto-Sincronización: Al volver a tener señal de internet, Locky respalda automáticamente tus cambios en segundo plano.\n'
+                    '• Carga Inteligente: El sistema cuenta con control de errores y tiempos límite para evitar que el indicador de sincronización se quede colgado.',
+              ),
+              const SizedBox(height: 20),
+
+              _buildHelpSection(
+                context,
+                icon: Iconsax.finger_scan_copy,
+                color: const Color(0xFFEF4444),
+                title: '6. Bloqueo de Seguridad Celular',
+                content:
+                    '• Al salir, pausar o minimizar la aplicación, Locky se bloquea automáticamente al instante.\n'
+                    '• Para volver a ingresar, te solicitará la huella digital, rostro o el PIN de tu teléfono.\n'
+                    '• El bloqueo es infranqueable: ningun gesto o botón Atrás permite saltarse la pantalla de autenticación.',
               ),
               const SizedBox(height: 28),
 
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton(
+                child: ElevatedButton.icon(
+                  style: ElevatedButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(vertical: 14),
+                  ),
                   onPressed: () => Navigator.pop(ctx),
-                  child: const Text('Entendido'),
+                  icon: const Icon(Iconsax.tick_circle_copy),
+                  label: const Text('Entendido, Volver a la App'),
                 ),
               ),
-              const SizedBox(height: 16),
+              const SizedBox(height: 20),
             ],
           ),
         ),

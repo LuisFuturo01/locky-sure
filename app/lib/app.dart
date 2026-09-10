@@ -11,15 +11,35 @@ import 'features/dashboard/screens/dashboard_screen.dart';
 import 'features/vault/screens/vault_screen.dart';
 import 'features/settings/screens/settings_screen.dart';
 
-class LockyApp extends StatelessWidget {
+final GlobalKey<NavigatorState> rootNavigatorKey = GlobalKey<NavigatorState>();
+
+class LockyApp extends StatefulWidget {
   const LockyApp({super.key});
+
+  @override
+  State<LockyApp> createState() => _LockyAppState();
+}
+
+class _LockyAppState extends State<LockyApp> {
+  AuthState? _previousAuthState;
 
   @override
   Widget build(BuildContext context) {
     final themeProvider = Provider.of<ThemeProvider>(context);
     final authProvider = Provider.of<AuthProvider>(context);
 
+    // If app becomes locked or unauthenticated, clear any pushed routes or dialogs immediately
+    if (_previousAuthState != null &&
+        _previousAuthState != authProvider.state &&
+        authProvider.state != AuthState.authenticated) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        rootNavigatorKey.currentState?.popUntil((route) => route.isFirst);
+      });
+    }
+    _previousAuthState = authProvider.state;
+
     return MaterialApp(
+      navigatorKey: rootNavigatorKey,
       title: 'Locky',
       debugShowCheckedModeBanner: false,
       theme: themeProvider.currentTheme,

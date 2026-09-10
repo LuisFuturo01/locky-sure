@@ -29,7 +29,9 @@ class _LockScreenState extends State<LockScreen> {
     final theme = Theme.of(context);
     final auth = Provider.of<AuthProvider>(context);
 
-    return Scaffold(
+    return PopScope(
+      canPop: false,
+      child: Scaffold(
       body: Center(
         child: Padding(
           padding: const EdgeInsets.all(32.0),
@@ -98,6 +100,7 @@ class _LockScreenState extends State<LockScreen> {
           ),
         ),
       ),
+    ),
     );
   }
 }

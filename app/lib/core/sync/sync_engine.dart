@@ -257,7 +257,12 @@ class SyncEngine extends ChangeNotifier {
       print('❌ Sync failed: No active user logged in.');
       return false;
     }
-    payload['user_id'] = currentUserId;
+
+    if (item.targetTable == AppConstants.itemLinksTable) {
+      payload.remove('user_id');
+    } else {
+      payload['user_id'] = currentUserId;
+    }
 
     // Auto-ensure user profile exists in public.profiles to prevent foreign key constraint failures
     try {

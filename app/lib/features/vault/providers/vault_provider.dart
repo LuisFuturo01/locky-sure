@@ -126,7 +126,8 @@ class VaultProvider extends ChangeNotifier {
   }) async {
     final userId = SupabaseService.currentUser?.id ?? AppConstants.defaultLocalUserId;
     final encTitle = await cryptoService.encryptText(title);
-    final encData = await cryptoService.encryptText(jsonEncode(data));
+    final sharedIv = encTitle['iv']!;
+    final encData = await cryptoService.encryptText(jsonEncode(data), sharedIv);
     final id = const Uuid().v4();
     final now = DateTime.now();
 
@@ -196,7 +197,8 @@ class VaultProvider extends ChangeNotifier {
   }) async {
     final userId = SupabaseService.currentUser?.id ?? AppConstants.defaultLocalUserId;
     final encTitle = await cryptoService.encryptText(title);
-    final encData = await cryptoService.encryptText(jsonEncode(data));
+    final sharedIv = encTitle['iv']!;
+    final encData = await cryptoService.encryptText(jsonEncode(data), sharedIv);
     final now = DateTime.now();
 
     // Instant UI update in memory

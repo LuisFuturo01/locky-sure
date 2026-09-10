@@ -321,7 +321,12 @@ class _VaultScreenState extends State<VaultScreen> {
       return;
     }
 
-    final selectedIds = Set<String>.from(folderItems.map((i) => i.id));
+    // Map: item.id -> Set of selected field keys
+    final Map<String, Set<String>> selectedItemFields = {};
+    for (final item in folderItems) {
+      final available = _getAvailableFieldsForItem(item);
+      selectedItemFields[item.id] = Set<String>.from(available.keys);
+    }
 
     showModalBottomSheet(
       context: context,
@@ -331,17 +336,21 @@ class _VaultScreenState extends State<VaultScreen> {
         return StatefulBuilder(
           builder: (context, setModalState) {
             final theme = Theme.of(context);
-            final allChecked = selectedIds.length == folderItems.length;
+
+            int totalSelectedFields = 0;
+            for (final fields in selectedItemFields.values) {
+              totalSelectedFields += fields.length;
+            }
 
             return Container(
               constraints: BoxConstraints(
-                maxHeight: MediaQuery.of(context).size.height * 0.85,
+                maxHeight: MediaQuery.of(context).size.height * 0.88,
               ),
               decoration: BoxDecoration(
                 color: theme.colorScheme.surface,
                 borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
               ),
-              padding: const EdgeInsets.all(20),
+              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -351,7 +360,7 @@ class _VaultScreenState extends State<VaultScreen> {
                       width: 40,
                       height: 4,
                       decoration: BoxDecoration(
-                        color: Colors.white24,
+                        color: theme.colorScheme.onSurface.withOpacity(0.2),
                         borderRadius: BorderRadius.circular(2),
                       ),
                     ),
@@ -377,37 +386,65 @@ class _VaultScreenState extends State<VaultScreen> {
                               style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold),
                             ),
                             Text(
-                              folder.name,
-                              style: theme.textTheme.bodySmall?.copyWith(color: const Color(0xFF6366F1), fontWeight: FontWeight.w600),
+                              '📁 ${folder.name} (${folderItems.length} credenciales)',
+                              style: theme.textTheme.bodySmall?.copyWith(
+                                color: const Color(0xFF6366F1),
+                                fontWeight: FontWeight.w600,
+                              ),
                             ),
                           ],
                         ),
                       ),
                     ],
                   ),
-                  const SizedBox(height: 16),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                      Text(
-                        'Credenciales a incluir:',
-                        style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-                      ),
-                      TextButton.icon(
-                        onPressed: () {
-                          setModalState(() {
-                            if (allChecked) {
-                              selectedIds.clear();
-                            } else {
-                              selectedIds.addAll(folderItems.map((i) => i.id));
-                            }
-                          });
-                        },
-                        icon: Icon(allChecked ? Icons.deselect_rounded : Icons.select_all_rounded, size: 16),
-                        label: Text(allChecked ? 'Deseleccionar' : 'Todos'),
-                      ),
-                    ],
+                  const SizedBox(height: 14),
+                  SingleChildScrollView(
+                    scrollDirection: Axis.horizontal,
+                    child: Row(
+                      children: [
+                        ActionChip(
+                          avatar: const Icon(Icons.select_all_rounded, size: 16),
+                          label: const Text('Marcar Todo'),
+                          onPressed: () {
+                            setModalState(() {
+                              for (final item in folderItems) {
+                                final avail = _getAvailableFieldsForItem(item);
+                                selectedItemFields[item.id] = Set<String>.from(avail.keys);
+                              }
+                            });
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        ActionChip(
+                          avatar: const Icon(Icons.security_rounded, size: 16),
+                          label: const Text('Sin Contraseñas / PIN'),
+                          onPressed: () {
+                            setModalState(() {
+                              for (final item in folderItems) {
+                                final avail = _getAvailableFieldsForItem(item);
+                                final keys = Set<String>.from(avail.keys);
+                                keys.removeAll({'password', 'cvv', 'pin'});
+                                selectedItemFields[item.id] = keys;
+                              }
+                            });
+                          },
+                        ),
+                        const SizedBox(width: 8),
+                        ActionChip(
+                          avatar: const Icon(Icons.deselect_rounded, size: 16),
+                          label: const Text('Deseleccionar'),
+                          onPressed: () {
+                            setModalState(() {
+                              for (final item in folderItems) {
+                                selectedItemFields[item.id] = {};
+                              }
+                            });
+                          },
+                        ),
+                      ],
+                    ),
                   ),
+                  const SizedBox(height: 10),
                   const Divider(height: 1),
                   const SizedBox(height: 8),
                   Flexible(
@@ -416,7 +453,8 @@ class _VaultScreenState extends State<VaultScreen> {
                       itemCount: folderItems.length,
                       itemBuilder: (context, idx) {
                         final item = folderItems[idx];
-                        final isChecked = selectedIds.contains(item.id);
+                        final available = _getAvailableFieldsForItem(item);
+                        final currentSelected = selectedItemFields[item.id] ?? {};
 
                         IconData itemIcon;
                         switch (item.itemType) {
@@ -433,74 +471,136 @@ class _VaultScreenState extends State<VaultScreen> {
                             itemIcon = Iconsax.lock_copy;
                         }
 
-                        final subtitle = item.data['username']?.toString() ??
-                            item.data['document_number']?.toString() ??
-                            item.data['card_number']?.toString() ??
-                            item.itemType;
+                        final allItemFieldsChecked = available.isNotEmpty && currentSelected.length == available.length;
 
-                        return CheckboxListTile(
-                          value: isChecked,
-                          title: Text(item.title, style: const TextStyle(fontWeight: FontWeight.w600)),
-                          subtitle: Text(subtitle, maxLines: 1, overflow: TextOverflow.ellipsis),
-                          secondary: Icon(itemIcon, color: theme.colorScheme.primary),
-                          onChanged: (val) {
-                            setModalState(() {
-                              if (val == true) {
-                                selectedIds.add(item.id);
-                              } else {
-                                selectedIds.remove(item.id);
-                              }
-                            });
-                          },
+                        return Container(
+                          margin: const EdgeInsets.only(bottom: 10),
+                          decoration: BoxDecoration(
+                            color: theme.colorScheme.surfaceContainerHighest.withOpacity(0.4),
+                            borderRadius: BorderRadius.circular(14),
+                            border: Border.all(
+                              color: currentSelected.isNotEmpty
+                                  ? theme.colorScheme.primary.withOpacity(0.3)
+                                  : theme.colorScheme.outline.withOpacity(0.1),
+                            ),
+                          ),
+                          child: Theme(
+                            data: theme.copyWith(dividerColor: Colors.transparent),
+                            child: ExpansionTile(
+                              leading: Checkbox(
+                                value: allItemFieldsChecked ? true : (currentSelected.isEmpty ? false : null),
+                                tristate: true,
+                                onChanged: (val) {
+                                  setModalState(() {
+                                    if (val == true) {
+                                      selectedItemFields[item.id] = Set<String>.from(available.keys);
+                                    } else {
+                                      selectedItemFields[item.id] = {};
+                                    }
+                                  });
+                                },
+                              ),
+                              title: Row(
+                                children: [
+                                  Icon(itemIcon, size: 18, color: theme.colorScheme.primary),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      item.title,
+                                      style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              subtitle: Text(
+                                '${currentSelected.length} de ${available.length} datos seleccionados',
+                                style: TextStyle(
+                                  fontSize: 12,
+                                  color: currentSelected.isNotEmpty
+                                      ? theme.colorScheme.primary
+                                      : theme.colorScheme.onSurface.withOpacity(0.5),
+                                ),
+                              ),
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.only(left: 16, right: 16, bottom: 12),
+                                  child: Column(
+                                    children: available.entries.map((entry) {
+                                      final fieldKey = entry.key;
+                                      final fieldText = entry.value;
+                                      final isFieldChecked = currentSelected.contains(fieldKey);
+
+                                      return CheckboxListTile(
+                                        dense: true,
+                                        contentPadding: EdgeInsets.zero,
+                                        value: isFieldChecked,
+                                        title: Text(
+                                          fieldText,
+                                          style: TextStyle(
+                                            fontSize: 13,
+                                            fontWeight: isFieldChecked ? FontWeight.w600 : FontWeight.normal,
+                                          ),
+                                        ),
+                                        onChanged: (val) {
+                                          setModalState(() {
+                                            if (val == true) {
+                                              selectedItemFields[item.id]?.add(fieldKey);
+                                            } else {
+                                              selectedItemFields[item.id]?.remove(fieldKey);
+                                            }
+                                          });
+                                        },
+                                      );
+                                    }).toList(),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
                         );
                       },
                     ),
                   ),
-                  const SizedBox(height: 16),
+                  const SizedBox(height: 14),
                   SizedBox(
                     width: double.infinity,
                     child: ElevatedButton.icon(
-                      onPressed: selectedIds.isEmpty
+                      style: ElevatedButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(vertical: 14),
+                      ),
+                      onPressed: totalSelectedFields == 0
                           ? null
                           : () async {
                               Navigator.pop(ctx);
-                              final selectedItems = folderItems.where((i) => selectedIds.contains(i.id)).toList();
                               final buffer = StringBuffer();
-                              buffer.writeln('🔒 Locky - Credenciales Compartidas');
-                              buffer.writeln('📁 Carpeta: ${folder.name}');
-                              buffer.writeln('----------------------------------------\n');
+                              buffer.writeln('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                              buffer.writeln('REPORTE DE CREDENCIALES SELECCIONADAS');
+                              buffer.writeln('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n');
 
-                              for (int i = 0; i < selectedItems.length; i++) {
-                                final item = selectedItems[i];
-                                buffer.writeln('${i + 1}. 📌 ${item.title}');
-                                if (item.itemType == 'card') {
-                                  if (item.data.containsKey('card_number')) buffer.writeln('   • N° Tarjeta: ${item.data['card_number']}');
-                                  if (item.data.containsKey('cardholder_name')) buffer.writeln('   • Titular: ${item.data['cardholder_name']}');
-                                  if (item.data.containsKey('expiry_date')) buffer.writeln('   • Vencimiento: ${item.data['expiry_date']}');
-                                  if (item.data.containsKey('cvv')) buffer.writeln('   • CVV: ${item.data['cvv']}');
-                                } else if (item.itemType == 'note') {
-                                  if (item.data.containsKey('content')) buffer.writeln('   • Nota: ${item.data['content']}');
-                                } else if (item.itemType == 'identity') {
-                                  if (item.data.containsKey('username')) buffer.writeln('   • Titular: ${item.data['username']}');
-                                  if (item.data.containsKey('document_number')) buffer.writeln('   • Doc / CI: ${item.data['document_number']}');
-                                } else {
-                                  if (item.data.containsKey('username')) buffer.writeln('   • Usuario: ${item.data['username']}');
-                                  if (item.data.containsKey('password')) buffer.writeln('   • Contraseña: ${item.data['password']}');
-                                  if (item.data.containsKey('url')) buffer.writeln('   • URL: ${item.data['url']}');
-                                }
-                                if (item.data.containsKey('notes') && item.data['notes'].toString().isNotEmpty) {
-                                  buffer.writeln('   • Notas: ${item.data['notes']}');
+                              int sharedCount = 0;
+                              for (final item in folderItems) {
+                                final activeFields = selectedItemFields[item.id] ?? {};
+                                if (activeFields.isEmpty) continue;
+
+                                sharedCount++;
+                                final available = _getAvailableFieldsForItem(item);
+                                buffer.writeln('$sharedCount. ${item.title}');
+
+                                for (final entry in available.entries) {
+                                  if (activeFields.contains(entry.key)) {
+                                    buffer.writeln('   • ${entry.value}');
+                                  }
                                 }
                                 buffer.writeln();
                               }
 
-                              buffer.writeln('----------------------------------------');
-                              buffer.writeln('Enviado desde Locky.');
+                              buffer.writeln('━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━');
+                              buffer.writeln('Información emitida desde la aplicación Locky.');
 
-                              await Share.share(buffer.toString(), subject: 'Locky - Carpeta ${folder.name}');
+                              await Share.share(buffer.toString(), subject: 'Locky - Credenciales');
                             },
                       icon: const Icon(Iconsax.export_1_copy),
-                      label: Text('Compartir (${selectedIds.length}) Seleccionados'),
+                      label: Text('Compartir ($totalSelectedFields) Datos Seleccionados'),
                     ),
                   ),
                 ],
@@ -510,5 +610,69 @@ class _VaultScreenState extends State<VaultScreen> {
         );
       },
     );
+  }
+
+  Map<String, String> _getAvailableFieldsForItem(VaultItemModel item) {
+    final result = <String, String>{};
+    final data = item.data;
+
+    if (item.itemType == 'card') {
+      if (data.containsKey('cardholder_name') && data['cardholder_name'].toString().trim().isNotEmpty) {
+        result['cardholder_name'] = 'Titular: ${data['cardholder_name']}';
+      }
+      if (data.containsKey('card_number') && data['card_number'].toString().trim().isNotEmpty) {
+        result['card_number'] = 'N° Tarjeta: ${data['card_number']}';
+      }
+      if (data.containsKey('expiry_date') && data['expiry_date'].toString().trim().isNotEmpty) {
+        result['expiry_date'] = 'Vencimiento: ${data['expiry_date']}';
+      }
+      if (data.containsKey('cvv') && data['cvv'].toString().trim().isNotEmpty) {
+        result['cvv'] = 'CVV: ${data['cvv']}';
+      }
+      if (data.containsKey('account_number') && data['account_number'].toString().trim().isNotEmpty) {
+        result['account_number'] = 'N° de Cuenta: ${data['account_number']}';
+      }
+      if (data.containsKey('pin') && data['pin'].toString().trim().isNotEmpty) {
+        result['pin'] = 'PIN: ${data['pin']}';
+      }
+    } else if (item.itemType == 'identity') {
+      if (data.containsKey('username') && data['username'].toString().trim().isNotEmpty) {
+        result['username'] = 'Titular: ${data['username']}';
+      }
+      if (data.containsKey('document_number') && data['document_number'].toString().trim().isNotEmpty) {
+        result['document_number'] = 'N° Documento / CI: ${data['document_number']}';
+      } else if (data.containsKey('card_number') && data['card_number'].toString().trim().isNotEmpty) {
+        result['document_number'] = 'N° Documento / CI: ${data['card_number']}';
+      }
+    } else if (item.itemType == 'note') {
+      if (data.containsKey('content') && data['content'].toString().trim().isNotEmpty) {
+        result['content'] = 'Contenido Nota: ${data['content']}';
+      }
+    } else {
+      if (data.containsKey('username') && data['username'].toString().trim().isNotEmpty) {
+        result['username'] = 'Usuario / Correo: ${data['username']}';
+      }
+      if (data.containsKey('password') && data['password'].toString().trim().isNotEmpty) {
+        result['password'] = 'Contraseña: ${data['password']}';
+      }
+      if (data.containsKey('url') && data['url'].toString().trim().isNotEmpty) {
+        result['url'] = 'Sitio Web: ${data['url']}';
+      }
+    }
+
+    if (data.containsKey('notes') && data['notes'].toString().trim().isNotEmpty) {
+      result['notes'] = 'Notas: ${data['notes']}';
+    }
+
+    // Dynamic scan for any extra non-empty custom key in data
+    data.forEach((key, value) {
+      if (key == 'color_tag' || key == 'sync_status' || result.containsKey(key)) return;
+      final valStr = value?.toString().trim() ?? '';
+      if (valStr.isNotEmpty) {
+        result[key] = '$key: $valStr';
+      }
+    });
+
+    return result;
   }
 }

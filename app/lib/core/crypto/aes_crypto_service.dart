@@ -39,13 +39,14 @@ class AesCryptoService implements CryptoService {
   }
 
   @override
-  Future<Map<String, String>> encryptText(String plainText) async {
+  Future<Map<String, String>> encryptText(String plainText, [String? customIvBase64]) async {
     if (!_initialized || _key == null) {
       await initialize();
     }
 
-    // Generate a unique IV for each encryption
-    final iv = encrypt.IV.fromSecureRandom(16);
+    final iv = customIvBase64 != null
+        ? encrypt.IV.fromBase64(customIvBase64)
+        : encrypt.IV.fromSecureRandom(16);
     final encrypter = encrypt.Encrypter(
       encrypt.AES(_key!, mode: encrypt.AESMode.gcm),
     );
