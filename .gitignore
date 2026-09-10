@@ -41,5 +41,7 @@
 tmp/
 *.tmp
 *.sql
+.sql
+supabase_schema.sql
 node_modules/
 env.js
