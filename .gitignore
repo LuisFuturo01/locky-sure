@@ -40,6 +40,6 @@
 # Other temporary files
 tmp/
 *.tmp
-
+*.sql
 node_modules/
 env.js
