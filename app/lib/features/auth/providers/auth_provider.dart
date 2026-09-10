@@ -27,6 +27,11 @@ class AuthProvider extends ChangeNotifier {
   String? _pendingEmail;
   String? get pendingEmail => _pendingEmail;
 
+  bool _isPasswordRecoveryActive = false;
+  bool get isPasswordRecoveryActive => _isPasswordRecoveryActive;
+
+  String? get currentUserEmail => SupabaseService.currentUser?.email;
+
   AuthProvider({required this.cryptoService}) {
     checkCurrentSession();
     _listenToAuthChanges();
@@ -34,10 +39,19 @@ class AuthProvider extends ChangeNotifier {
 
   void _listenToAuthChanges() {
     SupabaseService.client.auth.onAuthStateChange.listen((data) async {
+      final event = data.event;
       final session = data.session;
+
+      if (event == AuthChangeEvent.passwordRecovery) {
+        _isPasswordRecoveryActive = true;
+        _emailConfirmationPending = false;
+        notifyListeners();
+        return;
+      }
+
       if (session != null) {
         _emailConfirmationPending = false;
-        if (_state == AuthState.unauthenticated) {
+        if (_state == AuthState.unauthenticated && !_isPasswordRecoveryActive) {
           _state = AuthState.deviceLockRequired;
           notifyListeners();
         }
@@ -94,19 +108,19 @@ class AuthProvider extends ChangeNotifier {
       final response = await SupabaseService.client.auth.signUp(
         email: email,
         password: password,
-        emailRedirectTo: 'https://singular-melomakarona-bc5ce2.netlify.app',
+        emailRedirectTo: 'io.supabase.surething://login-callback',
       );
 
       if (response.user != null) {
         if (response.session == null) {
-          // Email confirmation is required by Supabase Auth settings
+          // Email confirmation link sent to email
           _emailConfirmationPending = true;
           _pendingEmail = email;
           _isLoading = false;
           notifyListeners();
           return false;
         } else {
-          // Direct login (email confirmation disabled)
+          // Direct login (confirmation disabled in Supabase)
           await cryptoService.initialize();
           _state = AuthState.authenticated;
           _isLoading = false;
@@ -131,6 +145,7 @@ class AuthProvider extends ChangeNotifier {
       await SupabaseService.client.auth.resend(
         type: OtpType.signup,
         email: _pendingEmail!,
+        emailRedirectTo: 'io.supabase.surething://login-callback',
       );
     } catch (e) {
       _errorMessage = _parseUserFriendlyError(e);
@@ -194,7 +209,7 @@ class AuthProvider extends ChangeNotifier {
     try {
       await SupabaseService.client.auth.resetPasswordForEmail(
         email,
-        redirectTo: 'https://magical-starship-e2f526.netlify.app',
+        redirectTo: 'io.supabase.surething://login-callback',
       );
       _isLoading = false;
       notifyListeners();
@@ -210,11 +225,43 @@ class AuthProvider extends ChangeNotifier {
     return false;
   }
 
+  Future<bool> updatePassword(String newPassword) async {
+    _isLoading = true;
+    _errorMessage = null;
+    notifyListeners();
+
+    try {
+      await SupabaseService.client.auth.updateUser(
+        UserAttributes(password: newPassword),
+      );
+      _isPasswordRecoveryActive = false;
+      await cryptoService.initialize();
+      _state = AuthState.authenticated;
+      _isLoading = false;
+      notifyListeners();
+      return true;
+    } on AuthException catch (e) {
+      _errorMessage = _parseUserFriendlyError(e);
+    } catch (e) {
+      _errorMessage = _parseUserFriendlyError(e);
+    }
+
+    _isLoading = false;
+    notifyListeners();
+    return false;
+  }
+
+  void cancelPasswordRecovery() {
+    _isPasswordRecoveryActive = false;
+    notifyListeners();
+  }
+
   Future<void> signOut() async {
     await SupabaseService.client.auth.signOut();
     _state = AuthState.unauthenticated;
     _emailConfirmationPending = false;
     _pendingEmail = null;
+    _isPasswordRecoveryActive = false;
     notifyListeners();
   }
 

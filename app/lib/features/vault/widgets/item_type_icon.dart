@@ -39,6 +39,10 @@ class ItemTypeIcon extends StatelessWidget {
         icon = Iconsax.code_copy;
         color = const Color(0xFFA78BFA);
         break;
+      case 'pattern':
+        icon = Iconsax.diagram_copy;
+        color = const Color(0xFF8B5CF6);
+        break;
       default:
         icon = Iconsax.setting_copy;
         color = theme.colorScheme.primary;

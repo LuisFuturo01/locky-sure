@@ -14,12 +14,27 @@ class LoginScreen extends StatefulWidget {
 class _LoginScreenState extends State<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _newPasswordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
   bool _isSignUp = false;
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    _newPasswordController.dispose();
+    _confirmPasswordController.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final authProvider = Provider.of<AuthProvider>(context);
     final theme = Theme.of(context);
+
+    if (authProvider.isPasswordRecoveryActive) {
+      return _buildPasswordResetView(context, authProvider);
+    }
 
     if (authProvider.emailConfirmationPending) {
       return _buildEmailVerificationView(context, authProvider);
@@ -225,58 +240,194 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Widget _buildEmailVerificationView(BuildContext context, AuthProvider authProvider) {
     final theme = Theme.of(context);
+
     return Scaffold(
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
-            padding: const EdgeInsets.symmetric(horizontal: 28.0, vertical: 20.0),
+            physics: const ClampingScrollPhysics(),
+            padding: const EdgeInsets.all(24.0),
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Container(
-                  padding: const EdgeInsets.all(24),
+                  padding: const EdgeInsets.all(20),
                   decoration: BoxDecoration(
-                    color: Colors.amber.withOpacity(0.15),
+                    color: theme.colorScheme.primary.withOpacity(0.12),
                     shape: BoxShape.circle,
                   ),
-                  child: const Icon(
+                  child: Icon(
                     Iconsax.sms_tracking_copy,
-                    size: 56,
-                    color: Colors.amber,
+                    size: 48,
+                    color: theme.colorScheme.primary,
                   ),
                 ),
-                const SizedBox(height: 24),
+                const SizedBox(height: 20),
                 Text(
                   '¡Verifica tu Correo!',
                   style: theme.textTheme.headlineSmall?.copyWith(
                     fontWeight: FontWeight.bold,
                   ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
                 Text(
-                  'Hemos enviado un correo de confirmación a:\n${authProvider.pendingEmail ?? ""}\n\nHaz clic en el enlace del mensaje para activar tu cuenta e ingresar a la bóveda.',
+                  'Enviamos un enlace de confirmación a:\n${authProvider.pendingEmail ?? ""}\n\nAbre tu correo electrónico y haz clic en el enlace para activar tu cuenta e ingresar automáticamente a la Bóveda.',
                   textAlign: TextAlign.center,
-                  style: theme.textTheme.bodyMedium,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurface.withOpacity(0.7),
+                    height: 1.4,
+                  ),
                 ),
-                const SizedBox(height: 32),
+                const SizedBox(height: 24),
 
-                ElevatedButton.icon(
-                  onPressed: () async {
-                    await authProvider.resendVerificationEmail();
-                    if (context.mounted) {
-                      SnackbarUtils.showSuccess(context, 'Correo de verificación reenviado');
-                    }
-                  },
-                  icon: const Icon(Iconsax.refresh_copy),
-                  label: const Text('Reenviar Correo de Confirmación'),
+                if (authProvider.errorMessage != null) ...[
+                  Text(
+                    authProvider.errorMessage!,
+                    style: const TextStyle(color: Colors.red, fontSize: 13),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                ],
+
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: authProvider.isLoading
+                        ? null
+                        : () async {
+                            await authProvider.resendVerificationEmail();
+                            if (context.mounted) {
+                              SnackbarUtils.showSuccess(context, 'Enlace de confirmación reenviado a tu correo');
+                            }
+                          },
+                    icon: authProvider.isLoading
+                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : const Icon(Iconsax.refresh_copy, size: 18),
+                    label: const Text('Reenviar Enlace al Correo'),
+                  ),
                 ),
-                const SizedBox(height: 12),
+                const SizedBox(height: 14),
 
                 TextButton(
                   onPressed: () {
                     authProvider.cancelEmailConfirmation();
                   },
-                  child: const Text('Volver al Inicio de Sesión'),
+                  child: const Text('Volver al Inicio'),
+                ),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPasswordResetView(BuildContext context, AuthProvider authProvider) {
+    final theme = Theme.of(context);
+
+    return Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            physics: const ClampingScrollPhysics(),
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: theme.colorScheme.primary.withOpacity(0.12),
+                    shape: BoxShape.circle,
+                  ),
+                  child: Icon(
+                    Iconsax.key_copy,
+                    size: 48,
+                    color: theme.colorScheme.primary,
+                  ),
+                ),
+                const SizedBox(height: 20),
+                Text(
+                  'Nueva Contraseña',
+                  style: theme.textTheme.headlineSmall?.copyWith(
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                const SizedBox(height: 10),
+                Text(
+                  'Has verificado tu identidad mediante el enlace de correo. Ingresa tu nueva contraseña para ingresar a Locky:',
+                  textAlign: TextAlign.center,
+                  style: theme.textTheme.bodyMedium?.copyWith(
+                    color: theme.colorScheme.onSurface.withOpacity(0.7),
+                  ),
+                ),
+                const SizedBox(height: 24),
+
+                TextField(
+                  controller: _newPasswordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Nueva Contraseña',
+                    prefixIcon: Icon(Iconsax.key_copy),
+                  ),
+                ),
+                const SizedBox(height: 16),
+
+                TextField(
+                  controller: _confirmPasswordController,
+                  obscureText: true,
+                  decoration: const InputDecoration(
+                    labelText: 'Confirmar Nueva Contraseña',
+                    prefixIcon: Icon(Iconsax.key_copy),
+                  ),
+                ),
+                const SizedBox(height: 20),
+
+                if (authProvider.errorMessage != null) ...[
+                  Text(
+                    authProvider.errorMessage!,
+                    style: const TextStyle(color: Colors.red, fontSize: 13),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 12),
+                ],
+
+                SizedBox(
+                  width: double.infinity,
+                  child: ElevatedButton.icon(
+                    onPressed: authProvider.isLoading
+                        ? null
+                        : () async {
+                            final newPass = _newPasswordController.text.trim();
+                            final confirmPass = _confirmPasswordController.text.trim();
+
+                            if (newPass.isEmpty || newPass.length < 6) {
+                              SnackbarUtils.showError(context, 'La contraseña debe tener al menos 6 caracteres');
+                              return;
+                            }
+                            if (newPass != confirmPass) {
+                              SnackbarUtils.showError(context, 'Las contraseñas no coinciden');
+                              return;
+                            }
+
+                            final success = await authProvider.updatePassword(newPass);
+                            if (context.mounted && success) {
+                              SnackbarUtils.showSuccess(context, '¡Contraseña actualizada exitosamente!');
+                            }
+                          },
+                    icon: authProvider.isLoading
+                        ? const SizedBox(width: 18, height: 18, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                        : const Icon(Iconsax.security_user_copy, size: 18),
+                    label: const Text('Actualizar e Ingresar'),
+                  ),
+                ),
+                const SizedBox(height: 14),
+
+                TextButton(
+                  onPressed: () {
+                    authProvider.cancelPasswordRecovery();
+                  },
+                  child: const Text('Cancelar'),
                 ),
               ],
             ),
@@ -288,27 +439,43 @@ class _LoginScreenState extends State<LoginScreen> {
 
   void _showForgotPasswordDialog(BuildContext context, AuthProvider authProvider) {
     final resetEmailController = TextEditingController(text: _emailController.text.trim());
+
     showDialog(
       context: context,
+      barrierDismissible: true,
       builder: (ctx) => AlertDialog(
-        title: const Text('Recuperar Contraseña'),
-        content: SingleChildScrollView(
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const Text('Ingresa tu correo registrado y te enviaremos un enlace de recuperación:'),
-              const SizedBox(height: 12),
-              TextField(
-                controller: resetEmailController,
-                keyboardType: TextInputType.emailAddress,
-                decoration: const InputDecoration(
-                  labelText: 'Correo electrónico',
-                  prefixIcon: Icon(Iconsax.sms_copy),
-                ),
+        scrollable: true,
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Iconsax.key_copy, color: Theme.of(context).colorScheme.primary),
+            const SizedBox(width: 10),
+            const Expanded(
+              child: Text(
+                'Recuperar Contraseña',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
               ),
-            ],
-          ),
+            ),
+          ],
+        ),
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Ingresa tu correo registrado. Te enviaremos un enlace seguro para restablecer tu contraseña:',
+              style: Theme.of(context).textTheme.bodyMedium,
+            ),
+            const SizedBox(height: 16),
+            TextField(
+              controller: resetEmailController,
+              keyboardType: TextInputType.emailAddress,
+              decoration: const InputDecoration(
+                labelText: 'Correo electrónico',
+                prefixIcon: Icon(Iconsax.sms_copy),
+              ),
+            ),
+          ],
         ),
         actions: [
           TextButton(
@@ -316,26 +483,31 @@ class _LoginScreenState extends State<LoginScreen> {
             child: const Text('Cancelar'),
           ),
           ElevatedButton(
-            onPressed: () async {
-              final email = resetEmailController.text.trim();
-              if (email.isEmpty) {
-                SnackbarUtils.showError(context, 'Ingresa tu correo electrónico');
-                return;
-              }
-              Navigator.pop(ctx);
-              final success = await authProvider.resetPassword(email);
-              if (context.mounted) {
-                if (success) {
-                  SnackbarUtils.showSuccess(
-                    context,
-                    'Se ha enviado un correo de recuperación a $email',
-                  );
-                } else if (authProvider.errorMessage != null) {
-                  SnackbarUtils.showError(context, authProvider.errorMessage!);
-                }
-              }
-            },
-            child: const Text('Enviar Correo'),
+            onPressed: authProvider.isLoading
+                ? null
+                : () async {
+                    final email = resetEmailController.text.trim();
+                    if (email.isEmpty) {
+                      SnackbarUtils.showError(context, 'Ingresa tu correo electrónico');
+                      return;
+                    }
+
+                    final success = await authProvider.resetPassword(email);
+                    if (context.mounted) {
+                      if (success) {
+                        Navigator.pop(ctx);
+                        SnackbarUtils.showSuccess(
+                          context,
+                          'Enlace enviado a $email. Revisa tu correo.',
+                        );
+                      } else if (authProvider.errorMessage != null) {
+                        SnackbarUtils.showError(context, authProvider.errorMessage!);
+                      }
+                    }
+                  },
+            child: authProvider.isLoading
+                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2))
+                : const Text('Enviar Enlace'),
           ),
         ],
       ),

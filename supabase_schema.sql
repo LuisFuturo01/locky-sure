@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS public.vault_items (
     user_id UUID NOT NULL REFERENCES public.profiles(id) ON DELETE CASCADE,
     folder_id UUID REFERENCES public.folders(id) ON DELETE SET NULL,
     item_type TEXT NOT NULL DEFAULT 'password'
-        CHECK (item_type IN ('password', 'card', 'note', 'identity', 'api_key', 'custom')),
+        CHECK (item_type IN ('password', 'card', 'note', 'identity', 'api_key', 'pattern', 'custom')),
     title_encrypted TEXT NOT NULL,
     data_encrypted TEXT NOT NULL,
     iv TEXT NOT NULL,

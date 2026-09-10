@@ -13,6 +13,7 @@ import '../../../shared/utils/snackbar_utils.dart';
 import '../../../shared/utils/date_utils.dart';
 import '../widgets/item_type_icon.dart';
 import '../widgets/linked_items_list.dart';
+import '../widgets/pattern_lock_widget.dart';
 import 'item_form_screen.dart';
 
 class ItemDetailScreen extends StatefulWidget {
@@ -134,60 +135,73 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
             ),
             const SizedBox(height: 24),
 
-            GlassmorphicCard(
-              child: Column(
-                children: currentItem.data.entries.where((e) => e.key != 'color_tag').map((entry) {
-                  final key = entry.key;
-                  final value = entry.value.toString();
-                  final isSecret = key == 'password' || key == 'cvv' || key == 'api_secret' || key == 'pin';
+            if (currentItem.itemType == 'pattern') ...[
+              GlassmorphicCard(
+                child: PatternLockWidget(
+                  initialGridSize: int.tryParse(currentItem.data['pattern_grid_size']?.toString() ?? '3') ?? 3,
+                  initialSequence: (currentItem.data['pattern_sequence'] as List?)
+                          ?.map((e) => int.tryParse(e.toString()) ?? 0)
+                          .toList() ??
+                      [],
+                  readOnly: true,
+                ),
+              ),
+            ] else ...[
+              GlassmorphicCard(
+                child: Column(
+                  children: currentItem.data.entries.where((e) => e.key != 'color_tag').map((entry) {
+                    final key = entry.key;
+                    final value = entry.value.toString();
+                    final isSecret = key == 'password' || key == 'cvv' || key == 'api_secret' || key == 'pin';
 
-                  return Padding(
-                    padding: const EdgeInsets.symmetric(vertical: 8.0),
-                    child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                      children: [
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              (AppConstants.fieldLabels[key] ?? key).toUpperCase(),
-                              style: theme.textTheme.bodySmall?.copyWith(fontSize: 10),
-                            ),
-                            Text(
-                              isSecret && !_showSecret ? '••••••••••••' : value,
-                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                            ),
-                          ],
-                        ),
-                        Row(
-                          children: [
-                            if (isSecret)
-                              IconButton(
-                                icon: Icon(
-                                  _showSecret ? Iconsax.eye_slash_copy : Iconsax.eye_copy,
-                                  size: 18,
+                    return Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 8.0),
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                          Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                (AppConstants.fieldLabels[key] ?? key).toUpperCase(),
+                                style: theme.textTheme.bodySmall?.copyWith(fontSize: 10),
+                              ),
+                              Text(
+                                isSecret && !_showSecret ? '••••••••••••' : value,
+                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                              ),
+                            ],
+                          ),
+                          Row(
+                            children: [
+                              if (isSecret)
+                                IconButton(
+                                  icon: Icon(
+                                    _showSecret ? Iconsax.eye_slash_copy : Iconsax.eye_copy,
+                                    size: 18,
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      _showSecret = !_showSecret;
+                                    });
+                                  },
                                 ),
+                              IconButton(
+                                icon: const Icon(Iconsax.copy_copy, size: 18),
                                 onPressed: () {
-                                  setState(() {
-                                    _showSecret = !_showSecret;
-                                  });
+                                  Clipboard.setData(ClipboardData(text: value));
+                                  SnackbarUtils.showSuccess(context, 'Copiado al portapapeles');
                                 },
                               ),
-                            IconButton(
-                              icon: const Icon(Iconsax.copy_copy, size: 18),
-                              onPressed: () {
-                                Clipboard.setData(ClipboardData(text: value));
-                                SnackbarUtils.showSuccess(context, 'Copiado al portapapeles');
-                              },
-                            ),
-                          ],
-                        ),
-                      ],
-                    ),
-                  );
-                }).toList(),
+                            ],
+                          ),
+                        ],
+                      ),
+                    );
+                  }).toList(),
+                ),
               ),
-            ),
+            ],
             const SizedBox(height: 28),
 
             const SizedBox(height: 20),
@@ -355,6 +369,10 @@ class _ShareChecklistDialogState extends State<ShareChecklistDialog> {
         return 'Sitio Web / URL';
       case 'content':
         return 'Contenido de la Nota';
+      case 'pattern_grid_size':
+        return 'Tamaño de Matriz';
+      case 'pattern_sequence':
+        return 'Secuencia de Patrón (Puntos)';
       case 'notes':
         return 'Notas Adicionales';
       default:

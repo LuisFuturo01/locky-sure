@@ -7,6 +7,7 @@ import 'package:iconsax_flutter/iconsax_flutter.dart';
 import '../models/vault_item_model.dart';
 import '../providers/vault_provider.dart';
 import '../providers/folder_provider.dart';
+import '../widgets/pattern_lock_widget.dart';
 import '../../../shared/widgets/custom_app_bar.dart';
 import '../../../shared/utils/snackbar_utils.dart';
 import '../../../shared/utils/error_utils.dart';
@@ -37,6 +38,10 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
 
   // Note specific controller
   final _noteContentController = TextEditingController();
+
+  // Pattern specific variables
+  int _patternGridSize = 3;
+  List<int> _patternSequence = [];
 
   final _urlController = TextEditingController();
   final _notesController = TextEditingController();
@@ -87,6 +92,12 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
       if (data.containsKey('pin')) _pinController.text = data['pin']?.toString() ?? '';
       if (data.containsKey('account_number')) _accountNumberController.text = data['account_number']?.toString() ?? '';
       if (data.containsKey('content')) _noteContentController.text = data['content']?.toString() ?? '';
+      if (data.containsKey('pattern_grid_size')) {
+        _patternGridSize = int.tryParse(data['pattern_grid_size'].toString()) ?? 3;
+      }
+      if (data.containsKey('pattern_sequence') && data['pattern_sequence'] is List) {
+        _patternSequence = List<int>.from(data['pattern_sequence']);
+      }
 
       if (_selectedFolderId != null || _urlController.text.isNotEmpty) {
         _showAdvanced = true;
@@ -113,6 +124,7 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
     final categories = [
       {'type': 'password', 'label': 'Cuenta / Login', 'icon': Iconsax.lock_copy},
       {'type': 'card', 'label': 'Tarjeta', 'icon': Iconsax.card_copy},
+      {'type': 'pattern', 'label': 'Patrón', 'icon': Iconsax.diagram_copy},
       {'type': 'note', 'label': 'Nota Segura', 'icon': Iconsax.note_copy},
       {'type': 'identity', 'label': 'Identidad', 'icon': Iconsax.user_copy},
       {'type': 'api_key', 'label': 'API Key', 'icon': Iconsax.code_copy},
@@ -321,6 +333,14 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
                             }
                           } else if (_selectedType == 'note') {
                             data['content'] = _noteContentController.text.trim();
+                          } else if (_selectedType == 'pattern') {
+                            if (_patternSequence.isEmpty) {
+                              SnackbarUtils.showError(context, 'Traza al menos 2 puntos para el patrón');
+                              setState(() => _isSaving = false);
+                              return;
+                            }
+                            data['pattern_grid_size'] = _patternGridSize;
+                            data['pattern_sequence'] = _patternSequence;
                           } else if (_selectedType == 'identity') {
                             data['username'] = _usernameController.text.trim();
                             data['document_number'] = _cardNumberController.text.trim();
@@ -395,6 +415,31 @@ class _ItemFormScreenState extends State<ItemFormScreen> {
   }
 
   List<Widget> _buildCategoryFields(ThemeData theme) {
+    if (_selectedType == 'pattern') {
+      return [
+        TextField(
+          controller: _titleController,
+          decoration: const InputDecoration(
+            labelText: 'Título del Patrón *',
+            hintText: 'Ej. Desbloqueo Celular, Patrón Banco, etc.',
+            prefixIcon: Icon(Iconsax.edit_copy),
+          ),
+        ),
+        const SizedBox(height: 20),
+        PatternLockWidget(
+          initialGridSize: _patternGridSize,
+          initialSequence: _patternSequence,
+          readOnly: false,
+          onPatternChanged: (gridSize, sequence) {
+            setState(() {
+              _patternGridSize = gridSize;
+              _patternSequence = sequence;
+            });
+          },
+        ),
+      ];
+    }
+
     if (_selectedType == 'card') {
       return [
         TextField(

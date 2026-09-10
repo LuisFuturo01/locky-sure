@@ -20,10 +20,17 @@ class ErrorUtils {
     }
 
     // 2. Authentication credentials
+    if (errStr.contains('user not found') ||
+        errStr.contains('user_not_found') ||
+        errStr.contains('email not found') ||
+        errStr.contains('email_not_found') ||
+        errStr.contains('user email not found')) {
+      return 'No existe ninguna cuenta registrada con este correo electrónico.';
+    }
+
     if (errStr.contains('invalid login credentials') ||
         errStr.contains('invalid_credentials') ||
         errStr.contains('wrong password') ||
-        errStr.contains('user not found') ||
         errStr.contains('invalid grant')) {
       return 'Correo electrónico o contraseña incorrectos. Verifica tus datos.';
     }

@@ -71,6 +71,7 @@ class MainNavigationShell extends StatefulWidget {
 
 class _MainNavigationShellState extends State<MainNavigationShell> with WidgetsBindingObserver {
   int _currentIndex = 0;
+  late final PageController _pageController;
 
   final List<Widget> _screens = const [
     DashboardScreen(),
@@ -81,11 +82,13 @@ class _MainNavigationShellState extends State<MainNavigationShell> with WidgetsB
   @override
   void initState() {
     super.initState();
+    _pageController = PageController(initialPage: _currentIndex);
     WidgetsBinding.instance.addObserver(this);
   }
 
   @override
   void dispose() {
+    _pageController.dispose();
     WidgetsBinding.instance.removeObserver(this);
     super.dispose();
   }
@@ -127,36 +130,46 @@ class _MainNavigationShellState extends State<MainNavigationShell> with WidgetsB
         }
       },
       child: Scaffold(
-        body: IndexedStack(
-          index: _currentIndex,
+        body: PageView(
+          controller: _pageController,
+          onPageChanged: (index) {
+            setState(() {
+              _currentIndex = index;
+            });
+          },
           children: _screens,
         ),
-      bottomNavigationBar: NavigationBar(
-        selectedIndex: _currentIndex,
-        onDestinationSelected: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
-        destinations: const [
-          NavigationDestination(
-            icon: Icon(Iconsax.category_copy),
-            selectedIcon: Icon(Iconsax.category),
-            label: 'Dashboard',
-          ),
-          NavigationDestination(
-            icon: Icon(Iconsax.lock_1_copy),
-            selectedIcon: Icon(Iconsax.lock_1),
-            label: 'Bóveda',
-          ),
-          NavigationDestination(
-            icon: Icon(Iconsax.setting_2_copy),
-            selectedIcon: Icon(Iconsax.setting_2),
-            label: 'Ajustes',
-          ),
-        ],
+        bottomNavigationBar: NavigationBar(
+          selectedIndex: _currentIndex,
+          onDestinationSelected: (index) {
+            setState(() {
+              _currentIndex = index;
+              _pageController.animateToPage(
+                index,
+                duration: const Duration(milliseconds: 300),
+                curve: Curves.easeInOut,
+              );
+            });
+          },
+          destinations: const [
+            NavigationDestination(
+              icon: Icon(Iconsax.category_copy),
+              selectedIcon: Icon(Iconsax.category),
+              label: 'Dashboard',
+            ),
+            NavigationDestination(
+              icon: Icon(Iconsax.lock_1_copy),
+              selectedIcon: Icon(Iconsax.lock_1),
+              label: 'Bóveda',
+            ),
+            NavigationDestination(
+              icon: Icon(Iconsax.setting_2_copy),
+              selectedIcon: Icon(Iconsax.setting_2),
+              label: 'Ajustes',
+            ),
+          ],
+        ),
       ),
-    ),
-  );
-}
+    );
+  }
 }

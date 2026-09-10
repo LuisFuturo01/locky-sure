@@ -5,6 +5,7 @@ import 'package:iconsax_flutter/iconsax_flutter.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../shared/widgets/custom_app_bar.dart';
 import '../../../shared/widgets/glassmorphic_card.dart';
+import '../widgets/account_settings.dart';
 import '../widgets/theme_selector.dart';
 import '../widgets/sync_settings.dart';
 
@@ -16,11 +17,24 @@ class SettingsScreen extends StatelessWidget {
     final auth = Provider.of<AuthProvider>(context);
 
     return Scaffold(
+      resizeToAvoidBottomInset: true,
       appBar: const CustomAppBar(title: 'Configuración'),
-      body: SingleChildScrollView(
-        padding: const EdgeInsets.all(20.0),
-        child: Column(
+      body: SafeArea(
+        child: SingleChildScrollView(
+          physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+          padding: EdgeInsets.only(
+            left: 20.0,
+            right: 20.0,
+            top: 20.0,
+            bottom: MediaQuery.of(context).viewInsets.bottom + 40.0,
+          ),
+          child: Column(
           children: [
+            const GlassmorphicCard(
+              child: AccountSettingsWidget(),
+            ),
+            const SizedBox(height: 20),
+
             const GlassmorphicCard(
               child: ThemeSelectorWidget(),
             ),
@@ -45,6 +59,7 @@ class SettingsScreen extends StatelessWidget {
           ],
         ),
       ),
-    );
-  }
+    ),
+  );
+}
 }
