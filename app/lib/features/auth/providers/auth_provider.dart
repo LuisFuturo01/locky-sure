@@ -81,7 +81,7 @@ class AuthProvider extends ChangeNotifier {
       );
 
       if (response.user != null) {
-        await cryptoService.initialize();
+        await cryptoService.initialize(response.user!.id);
         _state = AuthState.authenticated;
         _isLoading = false;
         notifyListeners();
@@ -121,7 +121,7 @@ class AuthProvider extends ChangeNotifier {
           return false;
         } else {
           // Direct login (confirmation disabled in Supabase)
-          await cryptoService.initialize();
+          await cryptoService.initialize(response.user!.id);
           _state = AuthState.authenticated;
           _isLoading = false;
           notifyListeners();
