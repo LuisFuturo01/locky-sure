@@ -22,7 +22,7 @@ class SyncEngine extends ChangeNotifier {
   SyncEngine({required this.db, required this.connectivity}) {
     connectivity.onConnectivityChanged.listen((isConnected) {
       if (isConnected) {
-        processOutboxQueue();
+        syncAll();
       } else {
         _isSyncing = false;
         _syncStatusController.add('offline');
@@ -98,6 +98,9 @@ class SyncEngine extends ChangeNotifier {
             return false;
           },
         );
+        if (overallSuccess) {
+          await _pullAndReconcile();
+        }
       } else {
         _lastError = 'No hay una sesión activa de usuario. Vuelve a iniciar sesión.';
         overallSuccess = false;
@@ -129,10 +132,13 @@ class SyncEngine extends ChangeNotifier {
     notifyListeners();
 
     try {
-      await _doProcessOutboxQueue().timeout(
+      final success = await _doProcessOutboxQueue().timeout(
         const Duration(seconds: 15),
         onTimeout: () => false,
       );
+      if (success) {
+        await _pullAndReconcile();
+      }
       _syncStatusController.add('synced');
     } catch (e) {
       _syncStatusController.add('failed');
@@ -181,10 +187,12 @@ class SyncEngine extends ChangeNotifier {
       }
     }
 
-    // 2. Auto-recover ALL local folders to ensure Supabase contains all folders before vault items sync
-    final allLocalFolders = await db.select(db.localFolders).get();
+    // 2. Auto-recover ONLY local folders marked 'pending' or 'failed' (NOT 'synced')
+    final pendingFolders = await (db.select(db.localFolders)
+          ..where((tbl) => tbl.syncStatus.equals(AppConstants.syncPending) | tbl.syncStatus.equals(AppConstants.syncFailed)))
+        .get();
 
-    for (final f in allLocalFolders) {
+    for (final f in pendingFolders) {
       final existingOutbox = await (db.select(db.localOutbox)
             ..where((tbl) => tbl.targetTable.equals(AppConstants.foldersTable) & tbl.recordId.equals(f.id)))
           .getSingleOrNull();
@@ -244,6 +252,153 @@ class SyncEngine extends ChangeNotifier {
     }
 
     return allSuccess;
+  }
+
+  /// Pulls all remote data from Supabase and reconciles with local SQLite cache.
+  /// Any local item marked 'synced' that is missing from Supabase will be deleted locally.
+  /// Any remote item from Supabase will be upserted into local SQLite.
+  Future<void> _pullAndReconcile() async {
+    final currentUserId = SupabaseService.currentUser?.id;
+    if (currentUserId == null) return;
+    final client = SupabaseService.client;
+
+    try {
+      // 1. Fetch remote folders
+      final List<dynamic> remoteFolders = await client
+          .from(AppConstants.foldersTable)
+          .select()
+          .eq('user_id', currentUserId);
+
+      final remoteFolderIds = remoteFolders.map((f) => f['id'].toString()).toSet();
+      final localFolders = await db.select(db.localFolders).get();
+
+      // Delete local folders deleted on server (only if marked 'synced')
+      for (final localF in localFolders) {
+        if (localF.syncStatus == AppConstants.syncSynced && !remoteFolderIds.contains(localF.id)) {
+          await (db.delete(db.localFolders)..where((tbl) => tbl.id.equals(localF.id))).go();
+        }
+      }
+
+      // Upsert remote folders into local SQLite
+      for (final rFolder in remoteFolders) {
+        final id = rFolder['id'].toString();
+        final nameEnc = rFolder['name_encrypted']?.toString() ?? '';
+        final icon = rFolder['icon']?.toString() ?? 'folder';
+        final color = rFolder['color']?.toString() ?? '#6366F1';
+        final iv = rFolder['iv']?.toString() ?? '';
+        final parentId = rFolder['parent_id']?.toString();
+        final createdAtStr = rFolder['created_at']?.toString();
+        final updatedAtStr = rFolder['updated_at']?.toString();
+
+        final createdAt = createdAtStr != null ? DateTime.parse(createdAtStr).toLocal() : DateTime.now();
+        final updatedAt = updatedAtStr != null ? DateTime.parse(updatedAtStr).toLocal() : DateTime.now();
+
+        await db.into(db.localFolders).insertOnConflictUpdate(
+          LocalFoldersCompanion(
+            id: Value(id),
+            userId: Value(currentUserId),
+            parentId: Value(parentId),
+            nameEncrypted: Value(nameEnc),
+            icon: Value(icon),
+            color: Value(color),
+            iv: Value(iv),
+            createdAt: Value(createdAt),
+            updatedAt: Value(updatedAt),
+            syncStatus: const Value(AppConstants.syncSynced),
+          ),
+        );
+      }
+
+      // 2. Fetch remote vault items
+      final List<dynamic> remoteVaultItems = await client
+          .from(AppConstants.vaultItemsTable)
+          .select()
+          .eq('user_id', currentUserId);
+
+      final remoteItemIds = remoteVaultItems.map((i) => i['id'].toString()).toSet();
+      final localVaultItems = await db.select(db.localVaultItems).get();
+
+      // Delete local vault items deleted on server (only if marked 'synced')
+      for (final localItem in localVaultItems) {
+        if (localItem.syncStatus == AppConstants.syncSynced && !remoteItemIds.contains(localItem.id)) {
+          await (db.delete(db.localVaultItems)..where((tbl) => tbl.id.equals(localItem.id))).go();
+        }
+      }
+
+      // Upsert remote vault items into local SQLite
+      for (final rItem in remoteVaultItems) {
+        final id = rItem['id'].toString();
+        final folderId = rItem['folder_id']?.toString();
+        final itemType = rItem['item_type']?.toString() ?? 'password';
+        final titleEnc = rItem['title_encrypted']?.toString() ?? '';
+        final dataEnc = rItem['data_encrypted']?.toString() ?? '';
+        final iv = rItem['iv']?.toString() ?? '';
+        final isFavorite = rItem['is_favorite'] == true;
+        final createdAtStr = rItem['created_at']?.toString();
+        final updatedAtStr = rItem['updated_at']?.toString();
+
+        final createdAt = createdAtStr != null ? DateTime.parse(createdAtStr).toLocal() : DateTime.now();
+        final updatedAt = updatedAtStr != null ? DateTime.parse(updatedAtStr).toLocal() : DateTime.now();
+
+        await db.into(db.localVaultItems).insertOnConflictUpdate(
+          LocalVaultItemsCompanion(
+            id: Value(id),
+            userId: Value(currentUserId),
+            folderId: Value(folderId),
+            itemType: Value(itemType),
+            titleEncrypted: Value(titleEnc),
+            dataEncrypted: Value(dataEnc),
+            iv: Value(iv),
+            isFavorite: Value(isFavorite),
+            createdAt: Value(createdAt),
+            updatedAt: Value(updatedAt),
+            syncStatus: const Value(AppConstants.syncSynced),
+          ),
+        );
+      }
+
+      // 3. Fetch remote item links
+      try {
+        final List<dynamic> remoteLinks = await client
+            .from(AppConstants.itemLinksTable)
+            .select();
+
+        final remoteLinkIds = remoteLinks.map((l) => l['id'].toString()).toSet();
+        final localLinks = await db.select(db.localItemLinks).get();
+
+        for (final localL in localLinks) {
+          if (localL.syncStatus == AppConstants.syncSynced && !remoteLinkIds.contains(localL.id)) {
+            await (db.delete(db.localItemLinks)..where((tbl) => tbl.id.equals(localL.id))).go();
+          }
+        }
+
+        for (final rLink in remoteLinks) {
+          final id = rLink['id'].toString();
+          final sourceId = rLink['source_item_id'].toString();
+          final targetId = rLink['target_item_id'].toString();
+          final linkType = rLink['link_type']?.toString() ?? 'related';
+          final createdAtStr = rLink['created_at']?.toString();
+          final createdAt = createdAtStr != null ? DateTime.parse(createdAtStr).toLocal() : DateTime.now();
+
+          await db.into(db.localItemLinks).insertOnConflictUpdate(
+            LocalItemLinksCompanion(
+              id: Value(id),
+              sourceItemId: Value(sourceId),
+              targetItemId: Value(targetId),
+              linkType: Value(linkType),
+              createdAt: Value(createdAt),
+              syncStatus: const Value(AppConstants.syncSynced),
+            ),
+          );
+        }
+      } catch (e) {
+        print('Warning fetching item_links: $e');
+      }
+
+    } catch (e) {
+      print('Pull and reconcile error: $e');
+      _lastError = 'Error al conciliar datos con el servidor: $e';
+    }
   }
 
   Future<bool> _processSingleItem(LocalOutboxData item) async {

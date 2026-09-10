@@ -32,6 +32,11 @@ class FolderProvider extends ChangeNotifier {
         markFolderSynced(event.id, event.status);
       }
     });
+    syncEngine.syncStatusStream.listen((status) {
+      if (status == 'synced') {
+        loadFolders();
+      }
+    });
   }
 
   void markFolderSynced(String id, [String status = AppConstants.syncSynced]) {

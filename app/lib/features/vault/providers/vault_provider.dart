@@ -36,6 +36,11 @@ class VaultProvider extends ChangeNotifier {
         markItemSynced(event.id, event.status);
       }
     });
+    syncEngine.syncStatusStream.listen((status) {
+      if (status == 'synced') {
+        loadItems();
+      }
+    });
   }
 
   void markItemSynced(String id, [String status = AppConstants.syncSynced]) {

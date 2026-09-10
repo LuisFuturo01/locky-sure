@@ -4,6 +4,9 @@ import 'package:provider/provider.dart';
 import 'package:iconsax_flutter/iconsax_flutter.dart';
 
 import 'core/theme/theme_provider.dart';
+import 'core/sync/sync_engine.dart';
+import 'core/network/connectivity_service.dart';
+import 'core/supabase/supabase_service.dart';
 import 'features/auth/providers/auth_provider.dart';
 import 'features/auth/screens/login_screen.dart';
 import 'features/auth/screens/lock_screen.dart';
@@ -84,6 +87,14 @@ class _MainNavigationShellState extends State<MainNavigationShell> with WidgetsB
     super.initState();
     _pageController = PageController(initialPage: _currentIndex);
     WidgetsBinding.instance.addObserver(this);
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final syncEngine = Provider.of<SyncEngine>(context, listen: false);
+      final connectivity = Provider.of<ConnectivityService>(context, listen: false);
+      if (connectivity.isConnected && SupabaseService.isAuthenticated) {
+        syncEngine.syncAll();
+      }
+    });
   }
 
   @override

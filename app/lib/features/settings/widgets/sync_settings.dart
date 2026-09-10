@@ -38,7 +38,11 @@ class SyncSettingsWidget extends StatelessWidget {
           contentPadding: EdgeInsets.zero,
           title: const Text('Sincronizar Ahora'),
           subtitle: Text(syncEngine.isSyncing ? 'Sincronizando...' : 'Sincroniza tus datos pendientes con tu cuenta de Locky'),
-          trailing: ElevatedButton.icon(
+        ),
+        const SizedBox(height: 8),
+        SizedBox(
+          width: double.infinity,
+          child: ElevatedButton.icon(
             onPressed: !connectivity.isConnected || syncEngine.isSyncing
                 ? null
                 : () async {
@@ -62,7 +66,7 @@ class SyncSettingsWidget extends StatelessWidget {
             icon: syncEngine.isSyncing
                 ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.white))
                 : const Icon(Icons.sync, size: 18),
-            label: Text(syncEngine.isSyncing ? 'Sincronizando' : 'Sync Ahora'),
+            label: Text(syncEngine.isSyncing ? 'Sincronizando...' : 'Sincronizar Ahora'),
           ),
         ),
       ],

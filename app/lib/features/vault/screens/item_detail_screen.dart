@@ -157,22 +157,26 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                     return Padding(
                       padding: const EdgeInsets.symmetric(vertical: 8.0),
                       child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                (AppConstants.fieldLabels[key] ?? key).toUpperCase(),
-                                style: theme.textTheme.bodySmall?.copyWith(fontSize: 10),
-                              ),
-                              Text(
-                                isSecret && !_showSecret ? '••••••••••••' : value,
-                                style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                              ),
-                            ],
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  (AppConstants.fieldLabels[key] ?? key).toUpperCase(),
+                                  style: theme.textTheme.bodySmall?.copyWith(fontSize: 10),
+                                ),
+                                Text(
+                                  isSecret && !_showSecret ? '••••••••••••' : value,
+                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                                  overflow: TextOverflow.ellipsis,
+                                  maxLines: 3,
+                                ),
+                              ],
+                            ),
                           ),
                           Row(
+                            mainAxisSize: MainAxisSize.min,
                             children: [
                               if (isSecret)
                                 IconButton(

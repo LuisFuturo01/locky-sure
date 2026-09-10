@@ -160,20 +160,29 @@ class _VaultScreenState extends State<VaultScreen> {
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  TextButton.icon(
-                    onPressed: () => _selectAll(displayItems),
-                    icon: Icon(allSelected ? Icons.deselect_rounded : Icons.select_all_rounded),
-                    label: Text(allSelected ? 'Deseleccionar' : 'Todos'),
+                  Flexible(
+                    child: TextButton.icon(
+                      onPressed: () => _selectAll(displayItems),
+                      icon: Icon(allSelected ? Icons.deselect_rounded : Icons.select_all_rounded, size: 18),
+                      label: Text(
+                        allSelected ? 'Deseleccionar' : 'Todos',
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                    ),
                   ),
-                  ElevatedButton.icon(
-                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
-                    onPressed: _selectedItemIds.isEmpty
-                        ? null
-                        : () => _confirmBulkDelete(context, vault, displayItems),
-                    icon: const Icon(Iconsax.trash_copy, color: Colors.white, size: 18),
-                    label: Text(
-                      'Eliminar (${_selectedItemIds.length})',
-                      style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(backgroundColor: Colors.red),
+                      onPressed: _selectedItemIds.isEmpty
+                          ? null
+                          : () => _confirmBulkDelete(context, vault, displayItems),
+                      icon: const Icon(Iconsax.trash_copy, color: Colors.white, size: 18),
+                      label: Text(
+                        'Eliminar (${_selectedItemIds.length})',
+                        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold),
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ),
                 ],
