@@ -1,9 +1,10 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:local_auth/local_auth.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import '../../../core/supabase/supabase_service.dart';
+import '../../../core/constants/app_constants.dart';
 import '../../../core/crypto/crypto_service.dart';
-
+import '../../../core/supabase/supabase_service.dart';
 import '../../../shared/utils/error_utils.dart';
 
 enum AuthState { unauthenticated, deviceLockRequired, authenticated }
@@ -11,6 +12,7 @@ enum AuthState { unauthenticated, deviceLockRequired, authenticated }
 class AuthProvider extends ChangeNotifier {
   final CryptoService cryptoService;
   final LocalAuthentication _localAuth = LocalAuthentication();
+  final FlutterSecureStorage _secureStorage = const FlutterSecureStorage();
 
   AuthState _state = AuthState.unauthenticated;
   AuthState get state => _state;
@@ -30,6 +32,8 @@ class AuthProvider extends ChangeNotifier {
   bool _isPasswordRecoveryActive = false;
   bool get isPasswordRecoveryActive => _isPasswordRecoveryActive;
 
+  bool _isAuthenticatingManual = false;
+
   String? get currentUserEmail => SupabaseService.currentUser?.email;
 
   AuthProvider({required this.cryptoService}) {
@@ -41,6 +45,8 @@ class AuthProvider extends ChangeNotifier {
     SupabaseService.client.auth.onAuthStateChange.listen((data) async {
       final event = data.event;
       final session = data.session;
+
+      if (_isAuthenticatingManual) return;
 
       if (event == AuthChangeEvent.passwordRecovery) {
         _isPasswordRecoveryActive = true;
@@ -69,6 +75,7 @@ class AuthProvider extends ChangeNotifier {
   }
 
   Future<bool> signInWithEmail(String email, String password) async {
+    _isAuthenticatingManual = true;
     _isLoading = true;
     _errorMessage = null;
     _emailConfirmationPending = false;
@@ -84,6 +91,7 @@ class AuthProvider extends ChangeNotifier {
         await cryptoService.initialize(response.user!.id);
         _state = AuthState.authenticated;
         _isLoading = false;
+        _isAuthenticatingManual = false;
         notifyListeners();
         return true;
       }
@@ -93,12 +101,14 @@ class AuthProvider extends ChangeNotifier {
       _errorMessage = _parseUserFriendlyError(e);
     }
 
+    _isAuthenticatingManual = false;
     _isLoading = false;
     notifyListeners();
     return false;
   }
 
   Future<bool> signUpWithEmail(String email, String password) async {
+    _isAuthenticatingManual = true;
     _isLoading = true;
     _errorMessage = null;
     _emailConfirmationPending = false;
@@ -117,6 +127,7 @@ class AuthProvider extends ChangeNotifier {
           _emailConfirmationPending = true;
           _pendingEmail = email;
           _isLoading = false;
+          _isAuthenticatingManual = false;
           notifyListeners();
           return false;
         } else {
@@ -124,6 +135,7 @@ class AuthProvider extends ChangeNotifier {
           await cryptoService.initialize(response.user!.id);
           _state = AuthState.authenticated;
           _isLoading = false;
+          _isAuthenticatingManual = false;
           notifyListeners();
           return true;
         }
@@ -134,6 +146,7 @@ class AuthProvider extends ChangeNotifier {
       _errorMessage = _parseUserFriendlyError(e);
     }
 
+    _isAuthenticatingManual = false;
     _isLoading = false;
     notifyListeners();
     return false;
@@ -159,17 +172,76 @@ class AuthProvider extends ChangeNotifier {
     notifyListeners();
   }
 
+  // --- Local PIN Management (Stored locally in secure storage) ---
+
+  Future<String?> getLocalAppPin() async {
+    return await _secureStorage.read(key: AppConstants.localAppPinStorage);
+  }
+
+  Future<bool> isLocalPinSet() async {
+    final pin = await getLocalAppPin();
+    return pin != null && pin.trim().isNotEmpty;
+  }
+
+  Future<void> setLocalAppPin(String pin) async {
+    await _secureStorage.write(
+      key: AppConstants.localAppPinStorage,
+      value: pin.trim(),
+    );
+    notifyListeners();
+  }
+
+  Future<void> removeLocalAppPin() async {
+    await _secureStorage.delete(key: AppConstants.localAppPinStorage);
+    notifyListeners();
+  }
+
+  Future<bool> authenticateWithLocalPin(String inputPin) async {
+    _errorMessage = null;
+    final storedPin = await getLocalAppPin();
+    if (storedPin != null && storedPin == inputPin.trim()) {
+      await cryptoService.initialize();
+      _state = AuthState.authenticated;
+      notifyListeners();
+      return true;
+    } else {
+      _errorMessage = 'PIN de acceso local incorrecto.';
+      notifyListeners();
+      return false;
+    }
+  }
+
+  Future<bool> hasSystemLockScreen() async {
+    try {
+      final isSupported = await _localAuth.isDeviceSupported();
+      if (!isSupported) return false;
+
+      final availableBiometrics = await _localAuth.getAvailableBiometrics();
+      if (availableBiometrics.isEmpty) {
+        final canCheck = await _localAuth.canCheckBiometrics;
+        if (!canCheck) return false;
+        return false;
+      }
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
   Future<bool> authenticateWithDeviceBiometrics() async {
     try {
       bool isSupported = await _localAuth.isDeviceSupported();
-      bool canCheck = await _localAuth.canCheckBiometrics;
-
-      if (!isSupported && !canCheck) {
-        // Fallback for emulators without lock screen configured
-        await cryptoService.initialize();
-        _state = AuthState.authenticated;
+      if (!isSupported) {
+        _errorMessage = 'El dispositivo no soporta autenticación biométrica ni contraseña.';
         notifyListeners();
-        return true;
+        return false;
+      }
+
+      final availableBiometrics = await _localAuth.getAvailableBiometrics();
+      if (availableBiometrics.isEmpty) {
+        _errorMessage = 'Tu celular no tiene huella o contraseña de pantalla configurada.';
+        notifyListeners();
+        return false;
       }
 
       bool didAuthenticate = await _localAuth.authenticate(
@@ -230,20 +302,30 @@ class AuthProvider extends ChangeNotifier {
     _errorMessage = null;
     notifyListeners();
 
-    try {
-      await SupabaseService.client.auth.updateUser(
-        UserAttributes(password: newPassword),
-      );
-      _isPasswordRecoveryActive = false;
-      await cryptoService.initialize();
-      _state = AuthState.authenticated;
-      _isLoading = false;
-      notifyListeners();
-      return true;
-    } on AuthException catch (e) {
-      _errorMessage = _parseUserFriendlyError(e);
-    } catch (e) {
-      _errorMessage = _parseUserFriendlyError(e);
+    int retries = 0;
+    while (retries < 2) {
+      try {
+        await SupabaseService.client.auth.updateUser(
+          UserAttributes(password: newPassword),
+        ).timeout(const Duration(seconds: 15));
+
+        _isPasswordRecoveryActive = false;
+        await cryptoService.initialize();
+        _state = AuthState.authenticated;
+        _isLoading = false;
+        notifyListeners();
+        return true;
+      } on AuthException catch (e) {
+        _errorMessage = _parseUserFriendlyError(e);
+        break;
+      } catch (e) {
+        retries++;
+        if (retries >= 2) {
+          _errorMessage = _parseUserFriendlyError(e);
+          break;
+        }
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
     }
 
     _isLoading = false;
@@ -269,3 +351,4 @@ class AuthProvider extends ChangeNotifier {
     return ErrorUtils.toFriendlyMessage(e);
   }
 }
+

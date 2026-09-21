@@ -26,7 +26,7 @@ class ItemDetailScreen extends StatefulWidget {
 }
 
 class _ItemDetailScreenState extends State<ItemDetailScreen> {
-  bool _showSecret = false;
+  final Set<String> _visibleSecretFields = {};
 
   @override
   Widget build(BuildContext context) {
@@ -65,6 +65,8 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                   const SizedBox(height: 12),
                   Text(
                     currentItem.title,
+                    textAlign: TextAlign.center,
+                    softWrap: true,
                     style: theme.textTheme.headlineSmall?.copyWith(
                       fontWeight: FontWeight.bold,
                     ),
@@ -153,52 +155,81 @@ class _ItemDetailScreenState extends State<ItemDetailScreen> {
                     final key = entry.key;
                     final value = entry.value.toString();
                     final isSecret = key == 'password' || key == 'cvv' || key == 'api_secret' || key == 'pin';
+                    final isVisible = _visibleSecretFields.contains(key);
+                    final isLongText = key == 'content' || key == 'notes' || value.contains('\n') || value.length > 80;
 
                     return Padding(
-                      padding: const EdgeInsets.symmetric(vertical: 8.0),
-                      child: Row(
+                      padding: const EdgeInsets.symmetric(vertical: 10.0),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                Text(
-                                  (AppConstants.fieldLabels[key] ?? key).toUpperCase(),
-                                  style: theme.textTheme.bodySmall?.copyWith(fontSize: 10),
-                                ),
-                                Text(
-                                  isSecret && !_showSecret ? '••••••••••••' : value,
-                                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                                  overflow: TextOverflow.ellipsis,
-                                  maxLines: 3,
-                                ),
-                              ],
-                            ),
-                          ),
                           Row(
-                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              if (isSecret)
-                                IconButton(
-                                  icon: Icon(
-                                    _showSecret ? Iconsax.eye_slash_copy : Iconsax.eye_copy,
-                                    size: 18,
-                                  ),
-                                  onPressed: () {
-                                    setState(() {
-                                      _showSecret = !_showSecret;
-                                    });
-                                  },
+                              Expanded(
+                                child: Text(
+                                  (AppConstants.fieldLabels[key] ?? key).toUpperCase(),
+                                  style: theme.textTheme.bodySmall?.copyWith(fontSize: 10, letterSpacing: 0.8),
                                 ),
-                              IconButton(
-                                icon: const Icon(Iconsax.copy_copy, size: 18),
-                                onPressed: () {
-                                  Clipboard.setData(ClipboardData(text: value));
-                                  SnackbarUtils.showSuccess(context, 'Copiado al portapapeles');
-                                },
+                              ),
+                              Row(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                  if (isSecret)
+                                    IconButton(
+                                      constraints: const BoxConstraints(),
+                                      padding: const EdgeInsets.all(4),
+                                      icon: Icon(
+                                        isVisible ? Iconsax.eye_slash_copy : Iconsax.eye_copy,
+                                        size: 18,
+                                      ),
+                                      onPressed: () {
+                                        setState(() {
+                                          if (_visibleSecretFields.contains(key)) {
+                                            _visibleSecretFields.remove(key);
+                                          } else {
+                                            _visibleSecretFields.add(key);
+                                          }
+                                        });
+                                      },
+                                    ),
+                                  const SizedBox(width: 8),
+                                  IconButton(
+                                    constraints: const BoxConstraints(),
+                                    padding: const EdgeInsets.all(4),
+                                    icon: const Icon(Iconsax.copy_copy, size: 18),
+                                    onPressed: () {
+                                      Clipboard.setData(ClipboardData(text: value));
+                                      SnackbarUtils.showSuccess(context, 'Copiado al portapapeles');
+                                    },
+                                  ),
+                                ],
                               ),
                             ],
                           ),
+                          const SizedBox(height: 6),
+                          if (isLongText && !(isSecret && !isVisible))
+                            Container(
+                              width: double.infinity,
+                              constraints: const BoxConstraints(maxHeight: 220),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: theme.colorScheme.surface.withOpacity(0.4),
+                                borderRadius: BorderRadius.circular(12),
+                                border: Border.all(color: theme.colorScheme.onSurface.withOpacity(0.08)),
+                              ),
+                              child: SingleChildScrollView(
+                                physics: const BouncingScrollPhysics(),
+                                child: SelectableText(
+                                  value,
+                                  style: const TextStyle(fontWeight: FontWeight.w500, fontSize: 14, height: 1.45),
+                                ),
+                              ),
+                            )
+                          else
+                            Text(
+                              isSecret && !isVisible ? '••••••••••••' : value,
+                              style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                            ),
                         ],
                       ),
                     );

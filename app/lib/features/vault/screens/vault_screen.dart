@@ -235,6 +235,7 @@ class _VaultScreenState extends State<VaultScreen> {
                 child: displayItems.isEmpty
                     ? ListView(
                         physics: const AlwaysScrollableScrollPhysics(),
+                        padding: const EdgeInsets.only(bottom: 90.0),
                         children: [
                           EmptyStateWidget(
                             title: 'Bóveda vacía',
@@ -247,12 +248,17 @@ class _VaultScreenState extends State<VaultScreen> {
                               );
                             },
                           ),
+                          const SizedBox(height: 80),
                         ],
                       )
                     : ListView.builder(
                         physics: const AlwaysScrollableScrollPhysics(),
-                        itemCount: displayItems.length,
+                        padding: const EdgeInsets.only(bottom: 90.0),
+                        itemCount: displayItems.length + 1,
                         itemBuilder: (context, index) {
+                          if (index == displayItems.length) {
+                            return const SizedBox(height: 80);
+                          }
                           final item = displayItems[index];
                           return VaultItemCard(
                             item: item,

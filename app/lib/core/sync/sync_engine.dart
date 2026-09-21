@@ -76,7 +76,14 @@ class SyncEngine extends ChangeNotifier {
     Future<void> Function()? onComplete,
   }) async {
     _lastError = null;
-    if (!connectivity.isConnected) {
+    
+    // Double-check real internet before failing due to stale connectivity_plus state
+    bool hasNet = connectivity.isConnected;
+    if (!hasNet) {
+      hasNet = await connectivity.verifyConnection();
+    }
+
+    if (!hasNet) {
       _lastError = 'Sin conexión a Internet';
       _isSyncing = false;
       _syncStatusController.add('failed');
@@ -92,7 +99,7 @@ class SyncEngine extends ChangeNotifier {
     try {
       if (SupabaseService.isAuthenticated) {
         overallSuccess = await _doProcessOutboxQueue().timeout(
-          const Duration(seconds: 15),
+          const Duration(seconds: 45),
           onTimeout: () {
             _lastError = 'La sincronización tardó demasiado (Timeout)';
             return false;
@@ -121,7 +128,8 @@ class SyncEngine extends ChangeNotifier {
   }
 
   Future<void> processOutboxQueue() async {
-    if (!connectivity.isConnected || !SupabaseService.isAuthenticated) {
+    bool hasNet = connectivity.isConnected || await connectivity.verifyConnection();
+    if (!hasNet || !SupabaseService.isAuthenticated) {
       _isSyncing = false;
       notifyListeners();
       return;
@@ -133,7 +141,7 @@ class SyncEngine extends ChangeNotifier {
 
     try {
       final success = await _doProcessOutboxQueue().timeout(
-        const Duration(seconds: 15),
+        const Duration(seconds: 45),
         onTimeout: () => false,
       );
       if (success) {
@@ -223,6 +231,21 @@ class SyncEngine extends ChangeNotifier {
       }
     }
 
+    // Auto-ensure user profile exists in public.profiles ONCE before loop
+    final currentUserId = SupabaseService.currentUser?.id;
+    if (currentUserId != null) {
+      try {
+        final email = SupabaseService.currentUser?.email ?? 'user';
+        final displayName = email.contains('@') ? email.split('@').first : email;
+        await SupabaseService.client.from('profiles').upsert({
+          'id': currentUserId,
+          'display_name': displayName,
+        }, onConflict: 'id').timeout(const Duration(seconds: 8));
+      } catch (e) {
+        print('⚠️ Warning auto-upserting profile: $e');
+      }
+    }
+
     // 3. Process all pending or failed items in outbox queue (folders FIRST, then vault items)
     final pendingItems = await (db.select(db.localOutbox)
           ..where((tbl) => tbl.status.equals(AppConstants.syncPending) | tbl.status.equals(AppConstants.syncFailed))
@@ -267,7 +290,8 @@ class SyncEngine extends ChangeNotifier {
       final List<dynamic> remoteFolders = await client
           .from(AppConstants.foldersTable)
           .select()
-          .eq('user_id', currentUserId);
+          .eq('user_id', currentUserId)
+          .timeout(const Duration(seconds: 12));
 
       final remoteFolderIds = remoteFolders.map((f) => f['id'].toString()).toSet();
       final localFolders = await db.select(db.localFolders).get();
@@ -313,7 +337,8 @@ class SyncEngine extends ChangeNotifier {
       final List<dynamic> remoteVaultItems = await client
           .from(AppConstants.vaultItemsTable)
           .select()
-          .eq('user_id', currentUserId);
+          .eq('user_id', currentUserId)
+          .timeout(const Duration(seconds: 12));
 
       final remoteItemIds = remoteVaultItems.map((i) => i['id'].toString()).toSet();
       final localVaultItems = await db.select(db.localVaultItems).get();
@@ -361,7 +386,8 @@ class SyncEngine extends ChangeNotifier {
       try {
         final List<dynamic> remoteLinks = await client
             .from(AppConstants.itemLinksTable)
-            .select();
+            .select()
+            .timeout(const Duration(seconds: 12));
 
         final remoteLinkIds = remoteLinks.map((l) => l['id'].toString()).toSet();
         final localLinks = await db.select(db.localItemLinks).get();
@@ -419,18 +445,6 @@ class SyncEngine extends ChangeNotifier {
       payload['user_id'] = currentUserId;
     }
 
-    // Auto-ensure user profile exists in public.profiles to prevent foreign key constraint failures
-    try {
-      final email = SupabaseService.currentUser?.email ?? 'user';
-      final displayName = email.contains('@') ? email.split('@').first : email;
-      await client.from('profiles').upsert({
-        'id': currentUserId,
-        'display_name': displayName,
-      }, onConflict: 'id');
-    } catch (e) {
-      print('⚠️ Warning auto-upserting profile: $e');
-    }
-
     // Clean null or empty string values from payload (e.g. folder_id: null or "")
     payload.removeWhere((key, value) => value == null);
 
@@ -463,23 +477,32 @@ class SyncEngine extends ChangeNotifier {
       }
     }
 
-    try {
-      if (item.operation == 'insert' || item.operation == 'update') {
-        payload['id'] = item.recordId;
-        await client.from(item.targetTable).upsert(payload);
-      } else if (item.operation == 'delete') {
-        await client.from(item.targetTable).delete().eq('id', item.recordId);
-      }
+    int retries = 0;
+    while (retries < 2) {
+      try {
+        if (item.operation == 'insert' || item.operation == 'update') {
+          payload['id'] = item.recordId;
+          await client.from(item.targetTable).upsert(payload).timeout(const Duration(seconds: 12));
+        } else if (item.operation == 'delete') {
+          await client.from(item.targetTable).delete().eq('id', item.recordId).timeout(const Duration(seconds: 12));
+        }
 
-      // AWAIT the local status update so SQLite is up-to-date before we return
-      await _updateLocalSyncStatus(item.targetTable, item.recordId, AppConstants.syncSynced);
-      return true;
-    } catch (e) {
-      _lastError = '$e';
-      print('❌ Sync failure for ${item.targetTable}/${item.recordId} [${item.operation}]: $e');
-      print('   Payload keys: ${payload.keys.toList()}');
-      return false;
+        // AWAIT the local status update so SQLite is up-to-date before we return
+        await _updateLocalSyncStatus(item.targetTable, item.recordId, AppConstants.syncSynced);
+        return true;
+      } catch (e) {
+        retries++;
+        if (retries >= 2) {
+          _lastError = '$e';
+          print('❌ Sync failure for ${item.targetTable}/${item.recordId} [${item.operation}]: $e');
+          print('   Payload keys: ${payload.keys.toList()}');
+          return false;
+        }
+        await Future.delayed(const Duration(milliseconds: 500));
+      }
     }
+
+    return false;
   }
 
   Future<void> _updateLocalSyncStatus(String table, String id, String status) async {

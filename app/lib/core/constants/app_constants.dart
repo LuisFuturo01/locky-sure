@@ -29,6 +29,7 @@ class AppConstants {
   static const String encryptionKeyStorage = 'surething_encryption_key';
   static const String sessionKeyStorage = 'surething_session';
   static const String themeKeyStorage = 'surething_theme';
+  static const String localAppPinStorage = 'surething_local_app_pin';
 
   // Sync status
   static const String syncPending = 'pending';

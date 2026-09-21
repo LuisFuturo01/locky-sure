@@ -94,7 +94,168 @@ class _MainNavigationShellState extends State<MainNavigationShell> with WidgetsB
       if (connectivity.isConnected && SupabaseService.isAuthenticated) {
         syncEngine.syncAll();
       }
+      _checkInsecureDevicePrompt();
     });
+  }
+
+  Future<void> _checkInsecureDevicePrompt() async {
+    final auth = Provider.of<AuthProvider>(context, listen: false);
+    final hasSystemLock = await auth.hasSystemLockScreen();
+    final hasLocalPin = await auth.isLocalPinSet();
+
+    if (!hasSystemLock && !hasLocalPin && mounted) {
+      _showInsecureDeviceDialog(context, auth);
+    }
+  }
+
+  void _showInsecureDeviceDialog(BuildContext context, AuthProvider auth) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: Row(
+          children: [
+            Icon(Iconsax.security_safe_copy, color: Colors.orange.shade700, size: 26),
+            const SizedBox(width: 10),
+            const Expanded(
+              child: Text(
+                'Tu celular no es seguro',
+                style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+              ),
+            ),
+          ],
+        ),
+        content: const Text(
+          'Detectamos que tu dispositivo no cuenta con un bloqueo de pantalla (PIN, patrón, huella o contraseña).\n\n'
+          '¿Deseas proteger tu app Locky creando un PIN de acceso local?\n\n'
+          '• Esta clave se guardará únicamente en la memoria segura de tu celular.\n'
+          '• Nunca se enviará a la nube.',
+          style: TextStyle(fontSize: 14, height: 1.4),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(ctx).pop(),
+            child: const Text('Ahora no'),
+          ),
+          ElevatedButton.icon(
+            onPressed: () {
+              Navigator.of(ctx).pop();
+              _showCreatePinModal(context, auth);
+            },
+            icon: const Icon(Iconsax.key_copy, size: 18),
+            label: const Text('Crear PIN Local'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  void _showCreatePinModal(BuildContext context, AuthProvider auth) {
+    final pinController = TextEditingController();
+    final confirmPinController = TextEditingController();
+    bool obscurePin = true;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => StatefulBuilder(
+        builder: (context, setModalState) => AlertDialog(
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+          title: const Row(
+            children: [
+              Icon(Iconsax.security_safe_copy, color: Colors.blueAccent, size: 24),
+              SizedBox(width: 10),
+              Expanded(
+                child: Text(
+                  'Crear PIN de Acceso',
+                  style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18),
+                ),
+              ),
+            ],
+          ),
+          content: SingleChildScrollView(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const Text(
+                  'Ingresa una clave numérica (4 a 6 dígitos) para proteger el acceso local a Locky.',
+                  style: TextStyle(fontSize: 13),
+                ),
+                const SizedBox(height: 16),
+                TextField(
+                  controller: pinController,
+                  keyboardType: TextInputType.number,
+                  obscureText: obscurePin,
+                  maxLength: 6,
+                  decoration: InputDecoration(
+                    counterText: '',
+                    labelText: 'Nuevo PIN Local',
+                    hintText: 'Ej: 1234',
+                    prefixIcon: const Icon(Iconsax.key_copy),
+                    suffixIcon: IconButton(
+                      icon: Icon(obscurePin ? Iconsax.eye_copy : Iconsax.eye_slash_copy, size: 20),
+                      onPressed: () => setModalState(() => obscurePin = !obscurePin),
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 12),
+                TextField(
+                  controller: confirmPinController,
+                  keyboardType: TextInputType.number,
+                  obscureText: obscurePin,
+                  maxLength: 6,
+                  decoration: const InputDecoration(
+                    counterText: '',
+                    labelText: 'Confirmar PIN',
+                    hintText: 'Repite tu PIN',
+                    prefixIcon: Icon(Iconsax.key_copy),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(ctx).pop(),
+              child: const Text('Cancelar'),
+            ),
+            ElevatedButton(
+              onPressed: () async {
+                final pin = pinController.text.trim();
+                final confirm = confirmPinController.text.trim();
+
+                if (pin.length < 4) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('El PIN debe tener al menos 4 dígitos')),
+                  );
+                  return;
+                }
+
+                if (pin != confirm) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(content: Text('Los PINs no coinciden')),
+                  );
+                  return;
+                }
+
+                await auth.setLocalAppPin(pin);
+                if (ctx.mounted) Navigator.of(ctx).pop();
+                if (mounted) {
+                  ScaffoldMessenger.of(context).showSnackBar(
+                    const SnackBar(
+                      content: Text('¡PIN de acceso local configurado exitosamente!'),
+                      backgroundColor: Colors.green,
+                    ),
+                  );
+                }
+              },
+              child: const Text('Guardar PIN'),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
   @override
