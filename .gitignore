@@ -44,4 +44,15 @@ tmp/
 .sql
 supabase_schema.sql
 node_modules/
-env.js
+env.js__pycache__/
+*.pyc
+venv/
+.venv/
+.env.*
+!.env.example
+*credenciales*.json
+credenciales*.txt
+.kilo/
+*.log
+.DS_Store
+Thumbs.db
